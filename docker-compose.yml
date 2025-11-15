@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: affiliate-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # n8n for workflow automation
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: affiliate-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-changeme}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=America/New_York
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./automation/n8n/workflows:/home/node/.n8n/workflows
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL (Optional - only if not using Supabase)
+  # Uncomment if you want to run PostgreSQL locally instead of Supabase
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: affiliate-postgres
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     - POSTGRES_USER=affiliate_user
+  #     - POSTGRES_PASSWORD=affiliate_password
+  #     - POSTGRES_DB=affiliate_db
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #     - ./database/migrations:/docker-entrypoint-initdb.d
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U affiliate_user"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  redis-data:
+    driver: local
+  n8n-data:
+    driver: local
+  # postgres-data:
+  #   driver: local
+
+networks:
+  default:
+    name: affiliate-network
+

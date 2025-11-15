@@ -1,0 +1,47 @@
+{
+  "name": "ai-affiliate-marketing-system",
+  "version": "1.0.0",
+  "description": "AI-Automated Affiliate Marketing System with MCP Integration",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "mcp-servers/*"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm install --workspace=backend && npm install --workspace=frontend && npm install --workspace=mcp-servers/operations && npm install --workspace=mcp-servers/content && npm install --workspace=mcp-servers/analytics && npm install --workspace=mcp-servers/automation && npm install --workspace=mcp-servers/integrations",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:mcp": "npm run dev --workspace=mcp-servers/operations & npm run dev --workspace=mcp-servers/content & npm run dev --workspace=mcp-servers/analytics & npm run dev --workspace=mcp-servers/automation & npm run dev --workspace=mcp-servers/integrations",
+    "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:mcp\"",
+    "build:backend": "npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:mcp": "npm run build --workspace=mcp-servers/operations && npm run build --workspace=mcp-servers/content && npm run build --workspace=mcp-servers/analytics && npm run build --workspace=mcp-servers/automation && npm run build --workspace=mcp-servers/integrations",
+    "build:all": "npm run build:backend && npm run build:frontend && npm run build:mcp",
+    "start:backend": "npm run start --workspace=backend",
+    "start:frontend": "npm run start --workspace=frontend",
+    "start:mcp": "npm run start --workspace=mcp-servers/operations & npm run start --workspace=mcp-servers/content & npm run start --workspace=mcp-servers/analytics & npm run start --workspace=mcp-servers/automation & npm run start --workspace=mcp-servers/integrations",
+    "start:all": "concurrently \"npm run start:backend\" \"npm run start:frontend\" \"npm run start:mcp\"",
+    "test": "npm run test --workspaces",
+    "db:migrate": "cd database && psql $DATABASE_URL -f migrations/001_initial_schema.sql && psql $DATABASE_URL -f migrations/002_create_views.sql",
+    "db:seed": "cd database && psql $DATABASE_URL -f seeds/001_networks_platforms.sql",
+    "db:reset": "npm run db:migrate && npm run db:seed",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "lint": "npm run lint --workspaces",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prettier": "^3.1.0",
+    "@types/node": "^20.10.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "author": "Your Name",
+  "license": "UNLICENSED"
+}
+
