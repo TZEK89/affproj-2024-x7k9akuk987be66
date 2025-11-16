@@ -110,7 +110,7 @@ export default function LandingPagesPage() {
       updated_at: '2024-10-28T16:00:00Z',
       views: 3456,
       conversions: 189,
-      conversion_rate: 5.47,
+      conversion_rate: 5.47
     }
   ];
 
