@@ -111,7 +111,7 @@ export default function LandingPagesPage() {
       views: 3456,
       conversions: 189,
       conversion_rate: 5.47,
-    },
+    }
   ];
 
   const templates = [
