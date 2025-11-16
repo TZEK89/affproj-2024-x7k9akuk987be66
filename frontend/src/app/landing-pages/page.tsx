@@ -10,7 +10,14 @@ import { LandingPage } from '@/types';
 import { formatDate } from '@/lib/utils';
 
 export default function LandingPagesPage() {
-  // Mock data - in production, fetch from API
+  const templates = [
+    { id: 'hero-video', name: 'Hero Video', description: 'Video hero with CTA' },
+    { id: 'testimonials', name: 'Testimonials', description: 'Social proof focused' },
+    { id: 'long-form-sales', name: 'Long-Form Sales', description: 'Detailed sales letter' },
+    { id: 'interactive-quiz', name: 'Interactive Quiz', description: 'Engagement quiz' },
+    { id: 'minimal-cta', name: 'Minimal CTA', description: 'Clean, simple design' }
+  ];
+
   const [landingPages] = useState<LandingPage[]>([
     {
       id: 1,
@@ -25,7 +32,7 @@ export default function LandingPagesPage() {
         commission_value: 75,
         is_active: true,
         created_at: '2024-10-15T10:00:00Z',
-        updated_at: '2024-10-28T15:30:00Z',
+        updated_at: '2024-10-28T15:30:00Z'
       },
       name: 'Yoga Burn - Weight Loss Landing Page',
       url: 'https://lp.example.com/yoga-burn-weight-loss',
@@ -35,7 +42,7 @@ export default function LandingPagesPage() {
       updated_at: '2024-10-28T15:30:00Z',
       views: 8234,
       conversions: 247,
-      conversion_rate: 3.0,
+      conversion_rate: 3.0
     },
     {
       id: 2,
@@ -50,7 +57,7 @@ export default function LandingPagesPage() {
         commission_value: 150,
         is_active: true,
         created_at: '2024-10-12T14:20:00Z',
-        updated_at: '2024-10-27T09:15:00Z',
+        updated_at: '2024-10-27T09:15:00Z'
       },
       name: 'Credit Repair - Trust Builder',
       url: 'https://lp.example.com/credit-repair-trust',
@@ -60,7 +67,7 @@ export default function LandingPagesPage() {
       updated_at: '2024-10-27T09:15:00Z',
       views: 5678,
       conversions: 77,
-      conversion_rate: 1.36,
+      conversion_rate: 1.36
     },
     {
       id: 3,
@@ -75,7 +82,7 @@ export default function LandingPagesPage() {
         commission_value: 50,
         is_active: false,
         created_at: '2024-09-28T08:45:00Z',
-        updated_at: '2024-10-20T11:00:00Z',
+        updated_at: '2024-10-20T11:00:00Z'
       },
       name: 'Marketing Course - Sales Page',
       url: 'https://lp.example.com/marketing-mastery',
@@ -85,7 +92,7 @@ export default function LandingPagesPage() {
       updated_at: '2024-10-20T11:00:00Z',
       views: 4123,
       conversions: 42,
-      conversion_rate: 1.02,
+      conversion_rate: 1.02
     },
     {
       id: 4,
@@ -100,7 +107,7 @@ export default function LandingPagesPage() {
         commission_value: 75,
         is_active: true,
         created_at: '2024-10-15T10:00:00Z',
-        updated_at: '2024-10-28T15:30:00Z',
+        updated_at: '2024-10-28T15:30:00Z'
       },
       name: 'Yoga Burn - Quiz Funnel',
       url: 'https://lp.example.com/yoga-quiz',
@@ -110,17 +117,9 @@ export default function LandingPagesPage() {
       updated_at: '2024-10-28T16:00:00Z',
       views: 3456,
       conversions: 189,
-      conversion_rate: 5.47,
-    },
-  ];
-
-  const templates = [
-    { id: 'hero-video', name: 'Hero Video', description: 'Video hero with CTA' },
-    { id: 'testimonials', name: 'Testimonials', description: 'Social proof focused' },
-    { id: 'long-form-sales', name: 'Long-Form Sales', description: 'Detailed sales letter' },
-    { id: 'interactive-quiz', name: 'Interactive Quiz', description: 'Engagement quiz' },
-    { id: 'minimal-cta', name: 'Minimal CTA', description: 'Clean, simple design' },
-  ];
+      conversion_rate: 5.47
+    }
+  ]);
 
   const columns: Column<LandingPage>[] = [
     {
@@ -136,7 +135,7 @@ export default function LandingPagesPage() {
             <span className="text-primary-600">{row.template}</span>
           </div>
         </div>
-      ),
+      )
     },
     {
       key: 'url',
@@ -163,13 +162,13 @@ export default function LandingPagesPage() {
             <ExternalLink className="h-4 w-4" />
           </a>
         </div>
-      ),
+      )
     },
     {
       key: 'views',
       label: 'Views',
       sortable: true,
-      render: (value) => value?.toLocaleString() || '0',
+      render: (value) => value?.toLocaleString() || '0'
     },
     {
       key: 'conversions',
@@ -179,7 +178,7 @@ export default function LandingPagesPage() {
         <span className="font-medium text-success-600">
           {value?.toLocaleString() || '0'}
         </span>
-      ),
+      )
     },
     {
       key: 'conversion_rate',
@@ -200,19 +199,19 @@ export default function LandingPagesPage() {
             )}
           </div>
         );
-      },
+      }
     },
     {
       key: 'is_active',
       label: 'Status',
       sortable: true,
-      render: (value) => <StatusBadge status={value ? 'active' : 'paused'} />,
+      render: (value) => <StatusBadge status={value ? 'active' : 'paused'} />
     },
     {
       key: 'created_at',
       label: 'Created',
       sortable: true,
-      render: (value) => formatDate(value),
+      render: (value) => formatDate(value)
     },
     {
       key: 'id',
@@ -247,8 +246,8 @@ export default function LandingPagesPage() {
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
-      ),
-    },
+      )
+    }
   ];
 
   const totalViews = landingPages.reduce((sum, lp) => sum + (lp.views || 0), 0);
@@ -264,7 +263,6 @@ export default function LandingPagesPage() {
       />
 
       <div className="p-6 space-y-6">
-        {/* Actions Bar */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="secondary" size="sm">
@@ -292,7 +290,6 @@ export default function LandingPagesPage() {
           </Button>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="text-sm text-gray-600">Total Pages</div>
@@ -312,7 +309,6 @@ export default function LandingPagesPage() {
           </div>
         </div>
 
-        {/* Template Gallery */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Available Templates</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -331,7 +327,6 @@ export default function LandingPagesPage() {
           </div>
         </div>
 
-        {/* Landing Pages Table */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <DataTable
             columns={columns}
@@ -344,4 +339,3 @@ export default function LandingPagesPage() {
     </div>
   );
 }
-
