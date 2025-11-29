@@ -3,6 +3,7 @@ nixPkgs = ["nodejs-18_x"]
 
 [phases.install]
 cmds = ["npm install --production"]
+path = "backend"
 
 [start]
-cmd = "node server.js"
+cmd = "node backend/server.js"
