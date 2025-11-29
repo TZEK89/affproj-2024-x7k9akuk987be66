@@ -1,0 +1,122 @@
+const express = require('express');
+const cors = require('cors');
+const { Pool } = require('pg');
+require('dotenv').config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// Test database connection
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('❌ Database connection failed:', err);
+  } else {
+    console.log('✅ Database connected successfully at:', res.rows[0].now);
+  }
+});
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Add database to request object
+app.use((req, res, next) => {
+  req.db = pool;
+  next();
+});
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// Import routes
+const productsRoutes = require('./routes/products');
+const landingPagesRoutes = require('./routes/landingPages');
+const campaignsRoutes = require('./routes/campaigns');
+const subscribersRoutes = require('./routes/subscribers');
+const conversionsRoutes = require('./routes/conversions');
+const analyticsRoutes = require('./routes/analytics');
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API is healthy',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    database: pool.totalCount > 0 ? 'connected' : 'disconnected'
+  });
+});
+
+// API routes
+app.use('/api/products', productsRoutes);
+app.use('/api/landing-pages', landingPagesRoutes);
+app.use('/api/campaigns', campaignsRoutes);
+app.use('/api/subscribers', subscribersRoutes);
+app.use('/api/conversions', conversionsRoutes);
+app.use('/api/analytics', analyticsRoutes);
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Affiliate Marketing System API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      products: '/api/products',
+      landing_pages: '/api/landing-pages',
+      campaigns: '/api/campaigns',
+      subscribers: '/api/subscribers',
+      conversions: '/api/conversions',
+      analytics: '/api/analytics'
+    }
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: {
+      message: `Route not found: ${req.path}`
+    }
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({
+    success: false,
+    error: {
+      message: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    }
+  });
+});
+
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Configured' : 'Not configured'}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  pool.end(() => {
+    console.log('Database pool closed');
+    process.exit(0);
+  });
+});
