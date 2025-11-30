@@ -1,5 +1,105 @@
 const express = require('express');
 const router = express.Router();
+const { supabase } = require('../config/database');
+
+// GET /api/analytics - Get analytics overview
+router.get('/', async (req, res) => {
+  try {
+    // Get total products
+    const { count: totalProducts } = await supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true });
+
+    // Get active products
+    const { count: activeProducts } = await supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active');
+
+    // Get total campaigns
+    const { count: totalCampaigns } = await supabase
+      .from('campaigns')
+      .select('*', { count: 'exact', head: true });
+
+    // Get active campaigns
+    const { count: activeCampaigns } = await supabase
+      .from('campaigns')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active');
+
+    // Get total landing pages
+    const { count: totalLandingPages } = await supabase
+      .from('landing_pages')
+      .select('*', { count: 'exact', head: true });
+
+    // Get total subscribers
+    const { count: totalSubscribers } = await supabase
+      .from('subscribers')
+      .select('*', { count: 'exact', head: true });
+
+    // Calculate totals from products
+    const { data: products } = await supabase
+      .from('products')
+      .select('price, commission_rate');
+
+    let totalRevenue = 0;
+    let avgCommission = 0;
+
+    if (products && products.length > 0) {
+      const totalCommissionRate = products.reduce((sum, p) => {
+        const price = parseFloat(p.price) || 0;
+        const commissionRate = parseFloat(p.commission_rate) || 0;
+        totalRevenue += price * (commissionRate / 100);
+        return sum + commissionRate;
+      }, 0);
+      avgCommission = totalCommissionRate / products.length;
+    }
+
+    // Get campaign budgets
+    const { data: campaigns } = await supabase
+      .from('campaigns')
+      .select('budget');
+
+    const totalBudget = campaigns?.reduce((sum, c) => sum + (parseFloat(c.budget) || 0), 0) || 0;
+
+    // Get landing page views
+    const { data: landingPages } = await supabase
+      .from('landing_pages')
+      .select('views, conversions');
+
+    const totalViews = landingPages?.reduce((sum, lp) => sum + (parseInt(lp.views) || 0), 0) || 0;
+    const totalConversions = landingPages?.reduce((sum, lp) => sum + (parseInt(lp.conversions) || 0), 0) || 0;
+    const conversionRate = totalViews > 0 ? ((totalConversions / totalViews) * 100).toFixed(2) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        overview: {
+          totalProducts: totalProducts || 0,
+          activeProducts: activeProducts || 0,
+          totalCampaigns: totalCampaigns || 0,
+          activeCampaigns: activeCampaigns || 0,
+          totalLandingPages: totalLandingPages || 0,
+          totalSubscribers: totalSubscribers || 0,
+          totalRevenue: totalRevenue.toFixed(2),
+          avgCommission: avgCommission.toFixed(2),
+          totalBudget: totalBudget.toFixed(2),
+          totalViews: totalViews,
+          conversionRate: parseFloat(conversionRate)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to fetch analytics data',
+        details: error.message
+      }
+    });
+  }
+});
 
 // POST /api/analytics/track - Track analytics event
 router.post('/track', async (req, res) => {
