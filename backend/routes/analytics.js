@@ -129,10 +129,12 @@ router.get('/dashboard', async (req, res) => {
     const { start_date, end_date } = req.query;
     
     let dateFilter = '';
+    let eventFilterPrefix = 'WHERE';
     const params = [];
     
     if (start_date && end_date) {
       dateFilter = 'WHERE created_at BETWEEN $1 AND $2';
+      eventFilterPrefix = 'AND';
       params.push(start_date, end_date);
     }
 
@@ -140,7 +142,7 @@ router.get('/dashboard', async (req, res) => {
     const pageViewsResult = await req.db.query(
       `SELECT COUNT(*) as total 
        FROM analytics 
-       ${dateFilter} AND event_type = 'page_view'`,
+       ${dateFilter} ${eventFilterPrefix} event_type = 'page_view'`,
       params
     );
 
@@ -148,7 +150,7 @@ router.get('/dashboard', async (req, res) => {
     const clicksResult = await req.db.query(
       `SELECT COUNT(*) as total 
        FROM analytics 
-       ${dateFilter} AND event_type = 'click'`,
+       ${dateFilter} ${eventFilterPrefix} event_type = 'click'`,
       params
     );
 
@@ -156,7 +158,7 @@ router.get('/dashboard', async (req, res) => {
     const topPagesResult = await req.db.query(
       `SELECT page_slug, COUNT(*) as views
        FROM analytics
-       ${dateFilter} AND event_type = 'page_view' AND page_slug IS NOT NULL
+       ${dateFilter} ${eventFilterPrefix} event_type = 'page_view' AND page_slug IS NOT NULL
        GROUP BY page_slug
        ORDER BY views DESC
        LIMIT 10`,
@@ -175,7 +177,7 @@ router.get('/dashboard', async (req, res) => {
          END as source,
          COUNT(*) as visits
        FROM analytics
-       ${dateFilter} AND event_type = 'page_view'
+       ${dateFilter} ${eventFilterPrefix} event_type = 'page_view'
        GROUP BY source
        ORDER BY visits DESC`,
       params
