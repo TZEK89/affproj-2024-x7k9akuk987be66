@@ -1,89 +1,76 @@
 const express = require('express');
 const router = express.Router();
-const { supabase } = require('../config/database');
 
 // GET /api/analytics - Get analytics overview
 router.get('/', async (req, res) => {
   try {
-    // Get total products
-    const { count: totalProducts } = await supabase
-      .from('products')
-      .select('*', { count: 'exact', head: true });
+    // Get total and active products
+    const productsResult = await req.db.query(
+      'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status = $1) as active FROM products',
+      ['active']
+    );
 
-    // Get active products
-    const { count: activeProducts } = await supabase
-      .from('products')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active');
-
-    // Get total campaigns
-    const { count: totalCampaigns } = await supabase
-      .from('campaigns')
-      .select('*', { count: 'exact', head: true });
-
-    // Get active campaigns
-    const { count: activeCampaigns } = await supabase
-      .from('campaigns')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active');
+    // Get total and active campaigns
+    const campaignsResult = await req.db.query(
+      'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status = $1) as active FROM campaigns',
+      ['active']
+    );
 
     // Get total landing pages
-    const { count: totalLandingPages } = await supabase
-      .from('landing_pages')
-      .select('*', { count: 'exact', head: true });
+    const landingPagesResult = await req.db.query(
+      'SELECT COUNT(*) as total FROM landing_pages'
+    );
 
     // Get total subscribers
-    const { count: totalSubscribers } = await supabase
-      .from('subscribers')
-      .select('*', { count: 'exact', head: true });
+    const subscribersResult = await req.db.query(
+      'SELECT COUNT(*) as total FROM subscribers'
+    );
 
-    // Calculate totals from products
-    const { data: products } = await supabase
-      .from('products')
-      .select('price, commission_rate');
+    // Calculate revenue and commission from products
+    const productsDataResult = await req.db.query(
+      'SELECT price, commission_rate FROM products'
+    );
 
     let totalRevenue = 0;
     let avgCommission = 0;
 
-    if (products && products.length > 0) {
-      const totalCommissionRate = products.reduce((sum, p) => {
+    if (productsDataResult.rows.length > 0) {
+      const totalCommissionRate = productsDataResult.rows.reduce((sum, p) => {
         const price = parseFloat(p.price) || 0;
         const commissionRate = parseFloat(p.commission_rate) || 0;
         totalRevenue += price * (commissionRate / 100);
         return sum + commissionRate;
       }, 0);
-      avgCommission = totalCommissionRate / products.length;
+      avgCommission = totalCommissionRate / productsDataResult.rows.length;
     }
 
     // Get campaign budgets
-    const { data: campaigns } = await supabase
-      .from('campaigns')
-      .select('budget');
+    const campaignBudgetResult = await req.db.query(
+      'SELECT SUM(budget) as total FROM campaigns'
+    );
 
-    const totalBudget = campaigns?.reduce((sum, c) => sum + (parseFloat(c.budget) || 0), 0) || 0;
+    // Get landing page views and conversions
+    const landingPageStatsResult = await req.db.query(
+      'SELECT SUM(views) as total_views, SUM(conversions) as total_conversions FROM landing_pages'
+    );
 
-    // Get landing page views
-    const { data: landingPages } = await supabase
-      .from('landing_pages')
-      .select('views, conversions');
-
-    const totalViews = landingPages?.reduce((sum, lp) => sum + (parseInt(lp.views) || 0), 0) || 0;
-    const totalConversions = landingPages?.reduce((sum, lp) => sum + (parseInt(lp.conversions) || 0), 0) || 0;
+    const totalViews = parseInt(landingPageStatsResult.rows[0].total_views) || 0;
+    const totalConversions = parseInt(landingPageStatsResult.rows[0].total_conversions) || 0;
     const conversionRate = totalViews > 0 ? ((totalConversions / totalViews) * 100).toFixed(2) : 0;
 
     res.json({
       success: true,
       data: {
         overview: {
-          totalProducts: totalProducts || 0,
-          activeProducts: activeProducts || 0,
-          totalCampaigns: totalCampaigns || 0,
-          activeCampaigns: activeCampaigns || 0,
-          totalLandingPages: totalLandingPages || 0,
-          totalSubscribers: totalSubscribers || 0,
+          totalProducts: parseInt(productsResult.rows[0].total) || 0,
+          activeProducts: parseInt(productsResult.rows[0].active) || 0,
+          totalCampaigns: parseInt(campaignsResult.rows[0].total) || 0,
+          activeCampaigns: parseInt(campaignsResult.rows[0].active) || 0,
+          totalLandingPages: parseInt(landingPagesResult.rows[0].total) || 0,
+          totalSubscribers: parseInt(subscribersResult.rows[0].total) || 0,
           totalRevenue: totalRevenue.toFixed(2),
           avgCommission: avgCommission.toFixed(2),
-          totalBudget: totalBudget.toFixed(2),
+          totalBudget: parseFloat(campaignBudgetResult.rows[0].total || 0).toFixed(2),
           totalViews: totalViews,
           conversionRate: parseFloat(conversionRate)
         }
