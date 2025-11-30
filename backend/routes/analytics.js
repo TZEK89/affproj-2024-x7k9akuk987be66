@@ -6,14 +6,14 @@ router.get('/', async (req, res) => {
   try {
     // Get total and active products
     const productsResult = await req.db.query(
-      'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status = $1) as active FROM products',
-      ['active']
+      'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE is_active = $1) as active FROM products',
+      [true]
     );
 
     // Get total and active campaigns
     const campaignsResult = await req.db.query(
-      'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status = $1) as active FROM campaigns',
-      ['active']
+      'SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE is_active = $1) as active FROM campaigns',
+      [true]
     );
 
     // Get total landing pages
