@@ -22,6 +22,7 @@
     "start:frontend": "npm run start --workspace=frontend",
     "start:mcp": "npm run start --workspace=mcp-servers/operations & npm run start --workspace=mcp-servers/content & npm run start --workspace=mcp-servers/analytics & npm run start --workspace=mcp-servers/automation & npm run start --workspace=mcp-servers/integrations",
     "start:all": "concurrently \"npm run start:backend\" \"npm run start:frontend\" \"npm run start:mcp\"",
+    "start": "npm run start --workspace=backend",
     "test": "npm run test --workspaces",
     "db:migrate": "cd database && psql $DATABASE_URL -f migrations/001_initial_schema.sql && psql $DATABASE_URL -f migrations/002_create_views.sql",
     "db:seed": "cd database && psql $DATABASE_URL -f seeds/001_networks_platforms.sql",
