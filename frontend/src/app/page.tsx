@@ -1,17 +1,61 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { DollarSign, TrendingUp, MousePointerClick, Target } from 'lucide-react';
 import Header from '@/components/Header';
 import MetricCard from '@/components/MetricCard';
+import { analyticsApi } from '@/lib/api-service';
 
 export default function DashboardPage() {
-  // Mock data - in production, fetch from API
-  const metrics = {
-    totalRevenue: 47832,
-    totalProfit: 28449,
-    conversions: 1847,
-    activeCampaigns: 47,
-  };
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState({
+    totalRevenue: 0,
+    totalProfit: 0,
+    conversions: 0,
+    activeCampaigns: 0,
+  });
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const response = await analyticsApi.getDashboard();
+        
+        if (response.success) {
+          setMetrics({
+            totalRevenue: response.data.totalRevenue || 0,
+            totalProfit: response.data.totalProfit || 0,
+            conversions: response.data.totalConversions || 0,
+            activeCampaigns: response.data.activeCampaigns || 0,
+          });
+        }
+      } catch (err: any) {
+        console.error('Error fetching dashboard data:', err);
+        setError(err.message || 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (error) {
+    return (
+      <div>
+        <Header
+          title="Dashboard"
+          subtitle="Overview of your affiliate marketing performance"
+        />
+        <div className="p-6">
+          <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+            <p className="text-red-800">Error: {error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -25,28 +69,28 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             title="Total Revenue"
-            value={`$${metrics.totalRevenue.toLocaleString()}`}
+            value={loading ? '...' : `$${metrics.totalRevenue.toLocaleString()}`}
             change={23.5}
             icon={DollarSign}
             iconColor="text-success-600"
           />
           <MetricCard
             title="Net Profit"
-            value={`$${metrics.totalProfit.toLocaleString()}`}
+            value={loading ? '...' : `$${metrics.totalProfit.toLocaleString()}`}
             change={18.2}
             icon={TrendingUp}
             iconColor="text-primary-600"
           />
           <MetricCard
             title="Conversions"
-            value={metrics.conversions.toLocaleString()}
+            value={loading ? '...' : metrics.conversions.toLocaleString()}
             change={31.8}
             icon={MousePointerClick}
             iconColor="text-cyan-600"
           />
           <MetricCard
             title="Active Campaigns"
-            value={metrics.activeCampaigns}
+            value={loading ? '...' : metrics.activeCampaigns}
             change={-5.3}
             icon={Target}
             iconColor="text-orange-600"
@@ -83,7 +127,7 @@ export default function DashboardPage() {
           </div>
           <div className="p-6">
             <div className="flex items-center justify-center h-48 text-gray-400">
-              Table will be rendered here
+              {loading ? 'Loading...' : 'Table will be rendered here'}
             </div>
           </div>
         </div>
@@ -91,4 +135,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

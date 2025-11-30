@@ -1,126 +1,80 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Filter } from 'lucide-react';
 import Header from '@/components/Header';
 import Button from '@/components/Button';
 import DataTable, { Column } from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
-import { Offer } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { productsApi } from '@/lib/api-service';
+
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  currency: string;
+  commission_rate: string;
+  category: string;
+  network: string;
+  is_active: boolean;
+  created_at: string;
+}
 
 export default function OffersPage() {
-  // Mock data - in production, fetch from API
-  const [offers] = useState<Offer[]>([
-    {
-      id: 1,
-      network_id: 1,
-      network: { id: 1, name: 'ClickBank', slug: 'clickbank', is_active: true },
-      name: 'Yoga Burn Challenge',
-      description: 'Complete yoga program for weight loss',
-      url: 'https://example.com/yoga-burn',
-      niche: 'Health & Fitness',
-      commission_type: 'percentage',
-      commission_value: 75,
-      epc: 2.45,
-      conversion_rate: 3.2,
-      refund_rate: 8.5,
-      quality_score: 92,
-      is_active: true,
-      created_at: '2024-10-15T10:00:00Z',
-      updated_at: '2024-10-28T15:30:00Z',
-    },
-    {
-      id: 2,
-      network_id: 2,
-      network: { id: 2, name: 'ShareASale', slug: 'shareasale', is_active: true },
-      name: 'Credit Repair Blueprint',
-      description: 'Step-by-step credit repair guide',
-      url: 'https://example.com/credit-repair',
-      niche: 'Personal Finance',
-      commission_type: 'fixed',
-      commission_value: 150,
-      epc: 3.12,
-      conversion_rate: 2.8,
-      refund_rate: 5.2,
-      quality_score: 88,
-      is_active: true,
-      created_at: '2024-10-12T14:20:00Z',
-      updated_at: '2024-10-27T09:15:00Z',
-    },
-    {
-      id: 3,
-      network_id: 1,
-      network: { id: 1, name: 'ClickBank', slug: 'clickbank', is_active: true },
-      name: 'Digital Marketing Mastery',
-      description: 'Complete online marketing course',
-      url: 'https://example.com/marketing-course',
-      niche: 'Online Education',
-      commission_type: 'percentage',
-      commission_value: 50,
-      epc: 1.85,
-      conversion_rate: 4.1,
-      refund_rate: 12.3,
-      quality_score: 78,
-      is_active: false,
-      created_at: '2024-09-28T08:45:00Z',
-      updated_at: '2024-10-20T11:00:00Z',
-    },
-  ]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const columns: Column<Offer>[] = [
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await productsApi.getAll();
+        
+        if (response.success) {
+          setProducts(response.data);
+        }
+      } catch (err: any) {
+        console.error('Error fetching products:', err);
+        setError(err.message || 'Failed to load products');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  const columns: Column<Product>[] = [
     {
       key: 'name',
-      label: 'Offer Name',
+      label: 'Product Name',
       sortable: true,
       render: (value, row) => (
         <div>
           <div className="font-medium text-gray-900">{value}</div>
-          <div className="text-xs text-gray-500">{row.network?.name}</div>
+          <div className="text-xs text-gray-500">{row.network}</div>
         </div>
       ),
     },
     {
-      key: 'niche',
-      label: 'Niche',
+      key: 'category',
+      label: 'Category',
       sortable: true,
     },
     {
-      key: 'commission_value',
+      key: 'price',
+      label: 'Price',
+      sortable: true,
+      render: (value, row) => `${row.currency} ${parseFloat(value).toFixed(2)}`,
+    },
+    {
+      key: 'commission_rate',
       label: 'Commission',
       sortable: true,
-      render: (value, row) =>
-        row.commission_type === 'percentage'
-          ? `${value}%`
-          : formatCurrency(value),
-    },
-    {
-      key: 'epc',
-      label: 'EPC',
-      sortable: true,
-      render: (value) => formatCurrency(value || 0),
-    },
-    {
-      key: 'conversion_rate',
-      label: 'Conv. Rate',
-      sortable: true,
-      render: (value) => `${value?.toFixed(1) || 0}%`,
-    },
-    {
-      key: 'quality_score',
-      label: 'Quality Score',
-      sortable: true,
-      render: (value) => (
-        <div className="flex items-center gap-2">
-          <div className="flex-1 bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-primary-600 h-2 rounded-full"
-              style={{ width: `${value || 0}%` }}
-            />
-          </div>
-          <span className="text-sm font-medium">{value || 0}</span>
-        </div>
-      ),
+      render: (value) => `${parseFloat(value).toFixed(0)}%`,
     },
     {
       key: 'is_active',
@@ -137,6 +91,22 @@ export default function OffersPage() {
       render: (value) => formatDate(value),
     },
   ];
+
+  if (error) {
+    return (
+      <div>
+        <Header
+          title="Offers"
+          subtitle="Manage affiliate offers from all networks"
+        />
+        <div className="p-6">
+          <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+            <p className="text-red-800">Error: {error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -155,55 +125,73 @@ export default function OffersPage() {
             </Button>
             <select className="h-9 rounded-lg border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
               <option value="">All Networks</option>
-              <option value="clickbank">ClickBank</option>
-              <option value="shareasale">ShareASale</option>
+              <option value="impact">Impact.com</option>
               <option value="cj">CJ Affiliate</option>
-              <option value="impact">Impact</option>
+              <option value="shareasale">ShareASale</option>
+              <option value="hotmart">Hotmart</option>
             </select>
             <select className="h-9 rounded-lg border border-gray-300 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
-              <option value="">All Niches</option>
-              <option value="health">Health & Fitness</option>
-              <option value="finance">Personal Finance</option>
-              <option value="education">Online Education</option>
+              <option value="">All Categories</option>
+              <option value="hosting">Web Hosting</option>
+              <option value="marketing">Marketing Tools</option>
+              <option value="courses">Online Courses</option>
+              <option value="social">Social Media</option>
             </select>
           </div>
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Add Offer
+            Add Product
           </Button>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-sm text-gray-600">Total Offers</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">247</div>
+            <div className="text-sm text-gray-600">Total Products</div>
+            <div className="mt-1 text-2xl font-bold text-gray-900">
+              {loading ? '...' : products.length}
+            </div>
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-sm text-gray-600">Active Offers</div>
-            <div className="mt-1 text-2xl font-bold text-success-600">189</div>
+            <div className="text-sm text-gray-600">Active Products</div>
+            <div className="mt-1 text-2xl font-bold text-success-600">
+              {loading ? '...' : products.filter(p => p.is_active).length}
+            </div>
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-sm text-gray-600">Avg. Quality Score</div>
-            <div className="mt-1 text-2xl font-bold text-primary-600">86</div>
+            <div className="text-sm text-gray-600">Avg. Commission</div>
+            <div className="mt-1 text-2xl font-bold text-primary-600">
+              {loading ? '...' : products.length > 0 
+                ? `${(products.reduce((sum, p) => sum + parseFloat(p.commission_rate), 0) / products.length).toFixed(0)}%`
+                : '0%'}
+            </div>
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-sm text-gray-600">Avg. EPC</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">$2.47</div>
+            <div className="text-sm text-gray-600">Avg. Price</div>
+            <div className="mt-1 text-2xl font-bold text-gray-900">
+              {loading ? '...' : products.length > 0
+                ? `$${(products.reduce((sum, p) => sum + parseFloat(p.price), 0) / products.length).toFixed(2)}`
+                : '$0.00'}
+            </div>
           </div>
         </div>
 
-        {/* Offers Table */}
+        {/* Products Table */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <DataTable
-            columns={columns}
-            data={offers}
-            keyExtractor={(row) => row.id}
-            onRowClick={(row) => console.log('Clicked offer:', row)}
-          />
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <p className="text-gray-500">Loading products...</p>
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={products}
+              keyExtractor={(row) => row.id}
+              onRowClick={(row) => console.log('Clicked product:', row)}
+            />
+          )}
         </div>
       </div>
     </div>
   );
 }
-
