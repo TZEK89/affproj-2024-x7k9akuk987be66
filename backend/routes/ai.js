@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const AIService = require('../services/ai/AIService');
-const { authenticateToken } = require('../middleware/auth');
+const authenticateToken = require('../middleware/auth');
 
 /**
  * POST /api/ai/generate-image
