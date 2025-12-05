@@ -96,7 +96,8 @@ app.use('/api/campaigns', authMiddleware, campaignsRoutes);
 app.use('/api/subscribers', authMiddleware, subscribersRoutes);
 app.use('/api/conversions', authMiddleware, conversionsRoutes);
 app.use('/api/analytics', authMiddleware, analyticsRoutes);
-app.use('/api/integrations', authMiddleware, integrationsRoutes);
+// Public integration test endpoints (no auth required)
+app.use('/api/integrations', integrationsRoutes);
 app.use('/api/hotmart', authMiddleware, hotmartRoutes);
 app.use('/api/products', authMiddleware, productImagesRoutes);
 app.use('/api/ai', aiRoutes);

@@ -3,6 +3,7 @@ const router = express.Router();
 const ImpactOfferSync = require('../jobs/syncImpactOffers');
 const impactService = require('../services/impactService');
 const db = require('../db');
+const authMiddleware = require('../middleware/auth');
 
 // Store sync job status in memory (in production, use Redis or database)
 let currentSyncJob = null;
@@ -11,7 +12,7 @@ let currentSyncJob = null;
  * GET /api/integrations/impact/status
  * Get Impact.com integration status
  */
-router.get('/impact/status', async (req, res) => {
+router.get('/impact/status', authMiddleware, async (req, res) => {
   try {
     // Check if credentials are configured
     const isConfigured = !!(process.env.IMPACT_ACCOUNT_SID && process.env.IMPACT_AUTH_TOKEN);
@@ -44,7 +45,7 @@ router.get('/impact/status', async (req, res) => {
  * POST /api/integrations/impact/sync
  * Trigger a sync of offers from Impact.com
  */
-router.post('/impact/sync', async (req, res) => {
+router.post('/impact/sync', authMiddleware, async (req, res) => {
   try {
     // Check if a sync is already running
     if (currentSyncJob !== null) {
@@ -150,7 +151,7 @@ router.get('/impact/test', async (req, res) => {
  * GET /api/integrations/hotmart/status
  * Get Hotmart integration status
  */
-router.get('/hotmart/status', async (req, res) => {
+router.get('/hotmart/status', authMiddleware, async (req, res) => {
   try {
     // Check if credentials are configured
     const isConfigured = !!(process.env.HOTMART_CLIENT_ID && process.env.HOTMART_CLIENT_SECRET);
@@ -233,7 +234,7 @@ router.get('/hotmart/test', async (req, res) => {
  * POST /api/integrations/hotmart/sync
  * Trigger a sync of products from Hotmart
  */
-router.post('/hotmart/sync', async (req, res) => {
+router.post('/hotmart/sync', authMiddleware, async (req, res) => {
   try {
     const { generateImages = true, batchSize = 50 } = req.body;
 
@@ -267,7 +268,7 @@ router.post('/hotmart/sync', async (req, res) => {
  * GET /api/integrations/stats
  * Get overall integration statistics
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats', authMiddleware, async (req, res) => {
   try {
     const stats = await db.query(`
       SELECT 
