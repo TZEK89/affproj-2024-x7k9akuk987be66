@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Filter, ExternalLink, Copy, Eye, Edit, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
 import Header from '@/components/Header';
 import Button from '@/components/Button';
@@ -8,6 +8,7 @@ import DataTable, { Column } from '@/components/DataTable';
 import StatusBadge from '@/components/StatusBadge';
 import { LandingPage } from '@/types';
 import { formatDate } from '@/lib/utils';
+import { landingPagesApi } from '@/lib/api-service';
 
 export default function LandingPagesPage() {
   const templates = [
@@ -18,7 +19,32 @@ export default function LandingPagesPage() {
     { id: 'minimal-cta', name: 'Minimal CTA', description: 'Clean, simple design' }
   ];
 
-  const [landingPages] = useState<LandingPage[]>([
+  const [landingPages, setLandingPages] = useState<LandingPage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchLandingPages = async () => {
+      try {
+        setLoading(true);
+        const response = await landingPagesApi.getAll();
+        
+        if (response.success) {
+          setLandingPages(response.data);
+        }
+      } catch (err: any) {
+        console.error('Error fetching landing pages:', err);
+        setError(err.message || 'Failed to load landing pages');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLandingPages();
+  }, []);
+
+  // Mock data for initial display (will be replaced by real data)
+  const mockPages = [
     {
       id: 1,
       offer_id: 1,

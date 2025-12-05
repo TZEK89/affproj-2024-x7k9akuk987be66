@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, X, RefreshCw, Settings, ExternalLink, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Check, X, RefreshCw, Settings, ExternalLink, AlertCircle, Download, CheckCircle } from 'lucide-react';
 import Header from '@/components/Header';
 import Button from '@/components/Button';
 import StatusBadge from '@/components/StatusBadge';
+import { integrationsApi } from '@/lib/api-service';
 
 interface Integration {
   id: string;
@@ -14,373 +15,395 @@ interface Integration {
   status: 'connected' | 'disconnected' | 'error';
   logo: string;
   lastSync?: string;
+  totalProducts?: number;
   features: string[];
   setupUrl?: string;
 }
 
+interface SyncStats {
+  catalogsProcessed: number;
+  productsAdded: number;
+  productsUpdated: number;
+  productsSkipped: number;
+  errors: any[];
+}
+
 export default function IntegrationsPage() {
-  const [integrations] = useState<Integration[]>([
-    // Affiliate Networks
-    {
-      id: 'clickbank',
-      name: 'ClickBank',
-      category: 'affiliate',
-      description: 'Leading affiliate marketplace for digital products',
-      status: 'connected',
-      logo: '🏦',
-      lastSync: '2024-10-29T08:30:00Z',
-      features: ['Offer sync', 'Commission tracking', 'Performance reports'],
-      setupUrl: 'https://clickbank.com/api',
-    },
-    {
-      id: 'shareasale',
-      name: 'ShareASale',
-      category: 'affiliate',
-      description: 'Affiliate marketing network with 25+ years of experience',
-      status: 'connected',
-      logo: '💼',
-      lastSync: '2024-10-29T07:15:00Z',
-      features: ['Offer sync', 'Real-time tracking', 'Payment processing'],
-      setupUrl: 'https://shareasale.com/api',
-    },
-    {
-      id: 'cj',
-      name: 'CJ Affiliate',
-      category: 'affiliate',
-      description: 'Commission Junction - Global affiliate marketing network',
-      status: 'disconnected',
-      logo: '🌐',
-      features: ['Offer sync', 'Deep linking', 'Advanced reporting'],
-      setupUrl: 'https://cj.com/api',
-    },
-    {
-      id: 'impact',
-      name: 'Impact',
-      category: 'affiliate',
-      description: 'Partnership automation platform',
-      status: 'disconnected',
-      logo: '⚡',
-      features: ['Offer management', 'Attribution tracking', 'Fraud detection'],
-      setupUrl: 'https://impact.com/api',
-    },
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStats, setSyncStats] = useState<SyncStats | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string>('');
 
-    // Ad Platforms
-    {
-      id: 'meta',
-      name: 'Meta Ads',
-      category: 'ads',
-      description: 'Facebook and Instagram advertising platform',
-      status: 'connected',
-      logo: '📘',
-      lastSync: '2024-10-29T09:00:00Z',
-      features: ['Campaign management', 'Performance tracking', 'Audience targeting'],
-      setupUrl: 'https://developers.facebook.com',
-    },
-    {
-      id: 'google',
-      name: 'Google Ads',
-      category: 'ads',
-      description: 'Google advertising platform',
-      status: 'connected',
-      logo: '🔍',
-      lastSync: '2024-10-29T08:45:00Z',
-      features: ['Search ads', 'Display ads', 'Performance tracking'],
-      setupUrl: 'https://developers.google.com/google-ads',
-    },
-    {
-      id: 'tiktok',
-      name: 'TikTok Ads',
-      category: 'ads',
-      description: 'TikTok advertising platform',
-      status: 'error',
-      logo: '🎵',
-      lastSync: '2024-10-28T14:20:00Z',
-      features: ['Video ads', 'In-feed ads', 'Brand takeovers'],
-      setupUrl: 'https://ads.tiktok.com/marketing_api',
-    },
+  // Load Impact.com status on mount
+  useEffect(() => {
+    loadImpactStatus();
+  }, []);
 
-    // AI Services
-    {
-      id: 'claude',
-      name: 'Claude (Anthropic)',
-      category: 'ai',
-      description: 'AI assistant for content generation',
-      status: 'connected',
-      logo: '🤖',
-      lastSync: '2024-10-29T09:30:00Z',
-      features: ['Ad copy generation', 'Content writing', 'Strategy suggestions'],
-      setupUrl: 'https://anthropic.com/api',
-    },
-    {
-      id: 'midjourney',
-      name: 'Midjourney',
-      category: 'ai',
-      description: 'AI image generation',
-      status: 'connected',
-      logo: '🎨',
-      lastSync: '2024-10-29T08:00:00Z',
-      features: ['Image generation', 'Style variations', 'Upscaling'],
-      setupUrl: 'https://midjourney.com/api',
-    },
-    {
-      id: 'runway',
-      name: 'Runway Gen-3',
-      category: 'ai',
-      description: 'AI video generation',
-      status: 'connected',
-      logo: '🎬',
-      lastSync: '2024-10-29T07:30:00Z',
-      features: ['Video generation', 'Video editing', 'Motion graphics'],
-      setupUrl: 'https://runwayml.com/api',
-    },
-    {
-      id: 'elevenlabs',
-      name: 'ElevenLabs',
-      category: 'ai',
-      description: 'AI voice generation',
-      status: 'disconnected',
-      logo: '🎙️',
-      features: ['Voice synthesis', 'Voice cloning', 'Multiple languages'],
-      setupUrl: 'https://elevenlabs.io/api',
-    },
+  const loadImpactStatus = async () => {
+    try {
+      const status = await integrationsApi.getImpactStatus();
+      
+      const impactIntegration: Integration = {
+        id: 'impact',
+        name: 'Impact.com',
+        category: 'affiliate',
+        description: 'Enterprise affiliate marketing platform with best-in-class API',
+        status: status.isConnected ? 'connected' : 'disconnected',
+        logo: '⭐',
+        lastSync: status.lastSyncTime,
+        totalProducts: status.totalProducts,
+        features: ['Offer sync', 'Real-time tracking', 'GraphQL API', 'Webhook support'],
+        setupUrl: 'https://impact.com',
+      };
 
-    // Tools
-    {
-      id: 'supabase',
-      name: 'Supabase',
-      category: 'tools',
-      description: 'PostgreSQL database and backend services',
-      status: 'connected',
-      logo: '🗄️',
-      lastSync: '2024-10-29T09:30:00Z',
-      features: ['Database', 'Authentication', 'Real-time subscriptions'],
-      setupUrl: 'https://supabase.com',
-    },
-    {
-      id: 'n8n',
-      name: 'n8n',
-      category: 'tools',
-      description: 'Workflow automation platform',
-      status: 'connected',
-      logo: '🔄',
-      lastSync: '2024-10-29T09:15:00Z',
-      features: ['Workflow automation', 'API integrations', 'Scheduled tasks'],
-      setupUrl: 'https://n8n.io',
-    },
-  ]);
+      // Load Hotmart status
+      const hotmartStatus = await integrationsApi.getHotmartStatus().catch(() => ({
+        isConnected: false,
+        lastSyncTime: null,
+        totalProducts: 0
+      }));
 
-  const categories = [
-    { id: 'affiliate', name: 'Affiliate Networks', icon: '💼' },
-    { id: 'ads', name: 'Ad Platforms', icon: '📢' },
-    { id: 'ai', name: 'AI Services', icon: '🤖' },
-    { id: 'tools', name: 'Tools & Services', icon: '🛠️' },
-  ];
+      const hotmartIntegration: Integration = {
+        id: 'hotmart',
+        name: 'Hotmart',
+        category: 'affiliate',
+        description: 'Digital products marketplace with instant approval',
+        status: hotmartStatus.isConnected ? 'connected' : 'disconnected',
+        logo: '🔥',
+        lastSync: hotmartStatus.lastSyncTime,
+        totalProducts: hotmartStatus.totalProducts,
+        features: ['Instant approval', 'Digital products', 'AI-generated images', 'Global marketplace'],
+        setupUrl: 'https://hotmart.com',
+      };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'connected':
-        return 'text-success-600 bg-success-50';
-      case 'disconnected':
-        return 'text-gray-600 bg-gray-50';
-      case 'error':
-        return 'text-danger-600 bg-danger-50';
-      default:
-        return 'text-gray-600 bg-gray-50';
+      setIntegrations([
+        impactIntegration,
+        hotmartIntegration,
+        {
+          id: 'cj',
+          name: 'CJ Affiliate',
+          category: 'affiliate',
+          description: 'Commission Junction - Global affiliate marketing network',
+          status: 'disconnected',
+          logo: '💼',
+          features: ['Offer sync', 'Commission tracking', 'Deep linking'],
+          setupUrl: 'https://cj.com',
+        },
+        {
+          id: 'shareasale',
+          name: 'ShareASale',
+          category: 'affiliate',
+          description: 'Affiliate marketing network with 25+ years of experience',
+          status: 'disconnected',
+          logo: '🤝',
+          features: ['Offer sync', 'Real-time tracking', 'Payment processing'],
+          setupUrl: 'https://shareasale.com',
+        },
+        {
+          id: 'meta',
+          name: 'Meta Ads',
+          category: 'ads',
+          description: 'Facebook and Instagram advertising platform',
+          status: 'disconnected',
+          logo: '📘',
+          features: ['Campaign management', 'Audience targeting', 'Performance analytics'],
+          setupUrl: 'https://business.facebook.com',
+        },
+        {
+          id: 'google-ads',
+          name: 'Google Ads',
+          category: 'ads',
+          description: 'Google advertising platform',
+          status: 'disconnected',
+          logo: '🔍',
+          features: ['Search ads', 'Display ads', 'Shopping campaigns'],
+          setupUrl: 'https://ads.google.com',
+        },
+        {
+          id: 'dalle',
+          name: 'DALL-E 3',
+          category: 'ai',
+          description: 'AI image generation for ad creatives',
+          status: 'disconnected',
+          logo: '🎨',
+          features: ['Image generation', 'Ad creative creation', 'Custom styles'],
+          setupUrl: 'https://openai.com',
+        },
+        {
+          id: 'claude',
+          name: 'Claude AI',
+          category: 'ai',
+          description: 'AI copywriting for landing pages and ads',
+          status: 'disconnected',
+          logo: '✍️',
+          features: ['Copywriting', 'Content generation', 'A/B test variants'],
+          setupUrl: 'https://anthropic.com',
+        },
+      ]);
+    } catch (error) {
+      console.error('Error loading Impact.com status:', error);
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'connected':
-        return <Check className="h-4 w-4" />;
-      case 'disconnected':
-        return <X className="h-4 w-4" />;
-      case 'error':
-        return <AlertCircle className="h-4 w-4" />;
-      default:
-        return null;
+  const handleSyncImpact = async () => {
+    setIsSyncing(true);
+    setSyncMessage('Starting sync...');
+    setSyncStats(null);
+
+    try {
+      // Start the sync
+      await integrationsApi.syncImpact({
+        fullSync: true,
+        inStockOnly: true,
+        requireImage: true,
+      });
+
+      setSyncMessage('Sync in progress... This may take a few minutes.');
+
+      // Poll for sync status
+      const pollInterval = setInterval(async () => {
+        try {
+          const status = await integrationsApi.getImpactSyncStatus();
+          
+          if (!status.isSyncing) {
+            clearInterval(pollInterval);
+            setIsSyncing(false);
+            setSyncMessage('Sync completed successfully!');
+            
+            // Reload status to get updated product count
+            await loadImpactStatus();
+            
+            // Clear message after 5 seconds
+            setTimeout(() => setSyncMessage(''), 5000);
+          } else if (status.stats) {
+            setSyncStats(status.stats);
+          }
+        } catch (error) {
+          clearInterval(pollInterval);
+          setIsSyncing(false);
+          setSyncMessage('Error checking sync status');
+        }
+      }, 2000); // Poll every 2 seconds
+
+    } catch (error: any) {
+      setIsSyncing(false);
+      setSyncMessage(`Error: ${error.message}`);
     }
   };
 
-  const connectedCount = integrations.filter(i => i.status === 'connected').length;
-  const errorCount = integrations.filter(i => i.status === 'error').length;
+  const handleSyncHotmart = async () => {
+    setIsSyncing(true);
+    setSyncMessage('Starting Hotmart sync with AI image generation...');
+    setSyncStats(null);
+
+    try {      const result = await integrationsApi.syncHotmart({
+        generateImages: true,
+        batchSize: 50
+      });
+
+      setIsSyncing(false);
+      if (result.success) {
+        setSyncMessage(result.message || 'Sync completed successfully!');
+        await loadImpactStatus(); // Reload to update Hotmart status
+      } else {
+        setSyncMessage(`Error: ${result.error}`);
+      }
+
+      setTimeout(() => setSyncMessage(''), 5000);
+    } catch (error: any) {
+      setIsSyncing(false);
+      setSyncMessage(`Error: ${error.message}`);
+    }
+  };
+
+  const handleTestConnection = async (integrationId: string) => {
+    if (integrationId === 'impact') {
+      try {
+        const result = await integrationsApi.testImpactConnection();
+        if (result.success) {
+          alert(`✅ Successfully connected to Impact.com!\n\nFound ${result.catalogCount} catalogs.`);
+          await loadImpactStatus();
+        }
+      } catch (error: any) {
+        alert(`❌ Failed to connect to Impact.com:\n\n${error.message}`);
+      }
+    } else if (integrationId === 'hotmart') {
+      try {
+        const result = await integrationsApi.testHotmartConnection();
+        if (result.success) {
+          alert(`✅ Successfully connected to Hotmart!\n\nAuthentication successful.`);
+          await loadImpactStatus();
+        }
+      } catch (error: any) {
+        alert(`❌ Failed to connect to Hotmart:\n\n${error.message}`);
+      }
+    } else {
+      alert(`Testing ${integrationId} connection... (not implemented yet)`);
+    }
+  };
+
+  const categoryLabels = {
+    affiliate: 'Affiliate Networks',
+    ads: 'Ad Platforms',
+    ai: 'AI Services',
+    tools: 'Tools & Services',
+  };
+
+  const groupedIntegrations = integrations.reduce((acc, integration) => {
+    if (!acc[integration.category]) {
+      acc[integration.category] = [];
+    }
+    acc[integration.category].push(integration);
+    return acc;
+  }, {} as Record<string, Integration[]>);
 
   return (
-    <div>
-      <Header
-        title="Integrations"
-        subtitle="Manage connections to external services"
-      />
-
-      <div className="p-6 space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-sm text-gray-600">Total Integrations</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900">{integrations.length}</div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-sm text-gray-600">Connected</div>
-            <div className="mt-1 text-2xl font-bold text-success-600">{connectedCount}</div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-sm text-gray-600">Disconnected</div>
-            <div className="mt-1 text-2xl font-bold text-gray-600">
-              {integrations.length - connectedCount - errorCount}
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="text-sm text-gray-600">Errors</div>
-            <div className="mt-1 text-2xl font-bold text-danger-600">{errorCount}</div>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Integrations</h1>
+          <p className="mt-2 text-gray-600">
+            Connect your affiliate networks, ad platforms, and AI services
+          </p>
         </div>
 
-        {/* Error Alert */}
-        {errorCount > 0 && (
-          <div className="bg-danger-50 border border-danger-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-danger-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-danger-800">
-                  {errorCount} integration{errorCount > 1 ? 's' : ''} need{errorCount === 1 ? 's' : ''} attention
-                </h3>
-                <p className="mt-1 text-sm text-danger-700">
-                  Some integrations are experiencing connection issues. Please check your API keys and reconnect.
-                </p>
-              </div>
-              <Button variant="secondary" size="sm">
-                View Details
-              </Button>
+        {syncMessage && (
+          <div className={`mb-6 p-4 rounded-lg ${
+            syncMessage.includes('Error') ? 'bg-red-50 text-red-800' : 'bg-blue-50 text-blue-800'
+          }`}>
+            <div className="flex items-center">
+              {isSyncing ? (
+                <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+              ) : syncMessage.includes('Error') ? (
+                <AlertCircle className="w-5 h-5 mr-2" />
+              ) : (
+                <CheckCircle className="w-5 h-5 mr-2" />
+              )}
+              <span>{syncMessage}</span>
             </div>
+            
+            {syncStats && (
+              <div className="mt-3 text-sm">
+                <div>Catalogs processed: {syncStats.catalogsProcessed}</div>
+                <div>Products added: {syncStats.productsAdded}</div>
+                <div>Products updated: {syncStats.productsUpdated}</div>
+                {syncStats.errors.length > 0 && (
+                  <div className="text-red-600">Errors: {syncStats.errors.length}</div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Integrations by Category */}
-        {categories.map(category => {
-          const categoryIntegrations = integrations.filter(i => i.category === category.id);
-          
-          return (
-            <div key={category.id} className="bg-white rounded-lg border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{category.icon}</span>
-                  <h3 className="text-lg font-semibold text-gray-900">{category.name}</h3>
-                  <span className="text-sm text-gray-500">
-                    ({categoryIntegrations.filter(i => i.status === 'connected').length}/{categoryIntegrations.length} connected)
-                  </span>
-                </div>
-              </div>
-
-              <div className="divide-y divide-gray-200">
-                {categoryIntegrations.map(integration => (
-                  <div key={integration.id} className="p-6 hover:bg-gray-50">
-                    <div className="flex items-start justify-between">
-                      {/* Integration Info */}
-                      <div className="flex items-start gap-4 flex-1">
-                        <div className="text-4xl">{integration.logo}</div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h4 className="font-medium text-gray-900">{integration.name}</h4>
-                            <div className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(integration.status)}`}>
-                              {getStatusIcon(integration.status)}
-                              <span className="capitalize">{integration.status}</span>
-                            </div>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-3">{integration.description}</p>
-                          
-                          {/* Features */}
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {integration.features.map(feature => (
-                              <span
-                                key={feature}
-                                className="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-xs text-gray-700"
-                              >
-                                {feature}
-                              </span>
-                            ))}
-                          </div>
-
-                          {/* Last Sync */}
-                          {integration.lastSync && (
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              <RefreshCw className="h-3 w-3" />
-                              Last synced: {new Date(integration.lastSync).toLocaleString()}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-2 ml-4">
-                        {integration.status === 'connected' ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => console.log('Sync:', integration)}
-                            >
-                              <RefreshCw className="h-4 w-4 mr-1" />
-                              Sync
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => console.log('Settings:', integration)}
-                            >
-                              <Settings className="h-4 w-4 mr-1" />
-                              Settings
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => console.log('Disconnect:', integration)}
-                            >
-                              Disconnect
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            {integration.setupUrl && (
-                              <a
-                                href={integration.setupUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
-                              >
-                                Setup Guide
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
-                            <Button
-                              size="sm"
-                              onClick={() => console.log('Connect:', integration)}
-                            >
-                              Connect
-                            </Button>
-                          </>
-                        )}
+        {Object.entries(groupedIntegrations).map(([category, items]) => (
+          <div key={category} className="mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              {categoryLabels[category as keyof typeof categoryLabels]}
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {items.map((integration) => (
+                <div
+                  key={integration.id}
+                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center">
+                      <div className="text-4xl mr-3">{integration.logo}</div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{integration.name}</h3>
+                        <StatusBadge status={integration.status} />
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
 
-        {/* API Keys Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">API Configuration</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Manage your API keys and credentials for external services. Keys are encrypted and stored securely.
-          </p>
-          <Button variant="secondary">
-            <Settings className="h-4 w-4 mr-2" />
-            Manage API Keys
-          </Button>
-        </div>
-      </div>
+                  <p className="text-sm text-gray-600 mb-4">
+                    {integration.description}
+                  </p>
+
+                  {integration.totalProducts !== undefined && (
+                    <div className="mb-4 p-3 bg-gray-50 rounded">
+                      <div className="text-sm text-gray-600">Total Products</div>
+                      <div className="text-2xl font-bold text-gray-900">
+                        {integration.totalProducts.toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+
+                  {integration.lastSync && (
+                    <div className="text-xs text-gray-500 mb-4">
+                      Last synced: {new Date(integration.lastSync).toLocaleString()}
+                    </div>
+                  )}
+
+                  <div className="mb-4">
+                    <div className="text-xs font-medium text-gray-500 mb-2">Features:</div>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      {integration.features.map((feature, index) => (
+                        <li key={index} className="flex items-center">
+                          <Check className="w-4 h-4 text-green-500 mr-2" />
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {integration.status === 'connected' && (integration.id === 'impact' || integration.id === 'hotmart') ? (
+                      <Button
+                        onClick={integration.id === 'impact' ? handleSyncImpact : handleSyncHotmart}
+                        disabled={isSyncing}
+                        className="flex-1"
+                      >
+                        {isSyncing ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            Syncing...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Sync Offers
+                          </>
+                        )}
+                      </Button>
+                    ) : integration.status === 'disconnected' ? (
+                      <Button
+                        onClick={() => handleTestConnection(integration.id)}
+                        variant="secondary"
+                        className="flex-1"
+                      >
+                        <Settings className="w-4 h-4 mr-2" />
+                        Connect
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => handleTestConnection(integration.id)}
+                        variant="secondary"
+                        className="flex-1"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Test
+                      </Button>
+                    )}
+                    
+                    {integration.setupUrl && (
+                      <Button
+                        onClick={() => window.open(integration.setupUrl, '_blank')}
+                        variant="secondary"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </main>
     </div>
   );
 }
-

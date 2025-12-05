@@ -158,3 +158,66 @@ export const analyticsApi = {
     return response.data;
   },
 };
+
+
+// Integrations API
+export const integrationsApi = {
+  // Impact.com integration
+  getImpactStatus: async () => {
+    const response = await apiClient.get('/integrations/impact/status');
+    return response.data;
+  },
+  syncImpact: async (options?: {
+    fullSync?: boolean;
+    campaignId?: string;
+    maxProducts?: number;
+    inStockOnly?: boolean;
+    requireImage?: boolean;
+    minPrice?: number;
+    maxPrice?: number;
+    category?: string;
+    withPromotions?: boolean;
+  }) => {
+    const response = await apiClient.post('/integrations/impact/sync', options);
+    return response.data;
+  },
+  getImpactSyncStatus: async () => {
+    const response = await apiClient.get('/integrations/impact/sync/status');
+    return response.data;
+  },
+  getImpactCatalogs: async () => {
+    const response = await apiClient.get('/integrations/impact/catalogs');
+    return response.data;
+  },
+  testImpactConnection: async () => {
+    const response = await apiClient.get('/integrations/impact/test');
+    return response.data;
+  },
+  
+  // Hotmart integration
+  getHotmartStatus: async () => {
+    const response = await apiClient.get('/hotmart/status');
+    return response.data;
+  },
+  syncHotmart: async (options?: {
+    generateImages?: boolean;
+    batchSize?: number;
+  }) => {
+    const response = await apiClient.post('/hotmart/sync', options);
+    return response.data;
+  },
+  testHotmartConnection: async () => {
+    const response = await apiClient.get('/hotmart/test');
+    return response.data;
+  },
+  getHotmartProducts: async () => {
+    const response = await apiClient.get('/hotmart/products');
+    return response.data;
+  },
+  
+  // General integrations
+  getStats: async () => {
+    const response = await apiClient.get('/integrations/stats');
+    return response.data;
+  },
+};

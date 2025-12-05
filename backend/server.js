@@ -38,13 +38,21 @@ app.use((req, res, next) => {
   next();
 });
 
+// Import middleware
+const authMiddleware = require('./middleware/auth');
+
 // Import routes
+const authRoutes = require('./routes/auth');
 const productsRoutes = require('./routes/products');
 const landingPagesRoutes = require('./routes/landingPages');
 const campaignsRoutes = require('./routes/campaigns');
 const subscribersRoutes = require('./routes/subscribers');
 const conversionsRoutes = require('./routes/conversions');
 const analyticsRoutes = require('./routes/analytics');
+const integrationsRoutes = require('./routes/integrations');
+const impactWebhookRoutes = require('./routes/webhooks/impact');
+const hotmartRoutes = require('./routes/hotmart');
+const productImagesRoutes = require('./routes/productImages');
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -58,12 +66,20 @@ app.get('/api/health', (req, res) => {
 });
 
 // API routes
-app.use('/api/products', productsRoutes);
-app.use('/api/landing-pages', landingPagesRoutes);
-app.use('/api/campaigns', campaignsRoutes);
-app.use('/api/subscribers', subscribersRoutes);
-app.use('/api/conversions', conversionsRoutes);
-app.use('/api/analytics', analyticsRoutes);
+// Public routes (no auth required)
+app.use('/api/auth', authRoutes);
+app.use('/api/webhooks/impact', impactWebhookRoutes); // Webhooks don't need auth
+
+// Protected routes (auth required)
+app.use('/api/products', authMiddleware, productsRoutes);
+app.use('/api/landing-pages', authMiddleware, landingPagesRoutes);
+app.use('/api/campaigns', authMiddleware, campaignsRoutes);
+app.use('/api/subscribers', authMiddleware, subscribersRoutes);
+app.use('/api/conversions', authMiddleware, conversionsRoutes);
+app.use('/api/analytics', authMiddleware, analyticsRoutes);
+app.use('/api/integrations', authMiddleware, integrationsRoutes);
+app.use('/api/hotmart', authMiddleware, hotmartRoutes);
+app.use('/api/products', authMiddleware, productImagesRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -73,12 +89,16 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/api/health',
+      auth: '/api/auth',
       products: '/api/products',
       landing_pages: '/api/landing-pages',
       campaigns: '/api/campaigns',
       subscribers: '/api/subscribers',
       conversions: '/api/conversions',
-      analytics: '/api/analytics'
+      analytics: '/api/analytics',
+      integrations: '/api/integrations',
+      hotmart: '/api/hotmart',
+      product_images: '/api/products/:id/images'
     }
   });
 });
