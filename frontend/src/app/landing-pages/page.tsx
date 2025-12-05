@@ -44,7 +44,7 @@ export default function LandingPagesPage() {
   }, []);
 
   // Mock data for initial display (will be replaced by real data)
-  const mockPages = [
+  const mockPages: LandingPage[] = [
     {
       id: 1,
       offer_id: 1,
@@ -145,7 +145,7 @@ export default function LandingPagesPage() {
       conversions: 189,
       conversion_rate: 5.47
     }
-  ]);
+  ];
 
   const columns: Column<LandingPage>[] = [
     {
