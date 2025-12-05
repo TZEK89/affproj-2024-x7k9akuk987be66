@@ -41,7 +41,11 @@ export default function IntegrationsPage() {
 
   const loadImpactStatus = async () => {
     try {
-      const status = await integrationsApi.getImpactStatus();
+      const status = await integrationsApi.getImpactStatus().catch(() => ({
+        isConnected: false,
+        lastSyncTime: null,
+        totalProducts: 0
+      }));
       
       const impactIntegration: Integration = {
         id: 'impact',
@@ -141,7 +145,90 @@ export default function IntegrationsPage() {
         },
       ]);
     } catch (error) {
-      console.error('Error loading Impact.com status:', error);
+      console.error('Error loading integrations status:', error);
+      // Set default integrations even if API fails
+      setIntegrations([
+        {
+          id: 'hotmart',
+          name: 'Hotmart',
+          category: 'affiliate',
+          description: 'Digital products marketplace with instant approval',
+          status: 'disconnected',
+          logo: '🔥',
+          features: ['Instant approval', 'Digital products', 'AI-generated images', 'Global marketplace'],
+          setupUrl: 'https://hotmart.com',
+        },
+        {
+          id: 'impact',
+          name: 'Impact.com',
+          category: 'affiliate',
+          description: 'Enterprise affiliate marketing platform with best-in-class API',
+          status: 'disconnected',
+          logo: '⭐',
+          features: ['Offer sync', 'Real-time tracking', 'GraphQL API', 'Webhook support'],
+          setupUrl: 'https://impact.com',
+        },
+        {
+          id: 'cj',
+          name: 'CJ Affiliate',
+          category: 'affiliate',
+          description: 'Commission Junction - Global affiliate marketing network',
+          status: 'disconnected',
+          logo: '💼',
+          features: ['Offer sync', 'Commission tracking', 'Deep linking'],
+          setupUrl: 'https://cj.com',
+        },
+        {
+          id: 'shareasale',
+          name: 'ShareASale',
+          category: 'affiliate',
+          description: 'Affiliate marketing network with 25+ years of experience',
+          status: 'disconnected',
+          logo: '🤝',
+          features: ['Offer sync', 'Real-time tracking', 'Payment processing'],
+          setupUrl: 'https://shareasale.com',
+        },
+        {
+          id: 'meta',
+          name: 'Meta Ads',
+          category: 'ads',
+          description: 'Facebook and Instagram advertising platform',
+          status: 'disconnected',
+          logo: '📘',
+          features: ['Campaign management', 'Audience targeting', 'Performance analytics'],
+          setupUrl: 'https://business.facebook.com',
+        },
+        {
+          id: 'google-ads',
+          name: 'Google Ads',
+          category: 'ads',
+          description: 'Google advertising platform',
+          status: 'disconnected',
+          logo: '🔍',
+          features: ['Search ads', 'Display ads', 'Shopping campaigns'],
+          setupUrl: 'https://ads.google.com',
+        },
+        {
+          id: 'manus',
+          name: 'Manus AI',
+          category: 'ai',
+          description: 'Multi-AI platform with image generation, content creation, and chat',
+          status: 'disconnected',
+          logo: '🤖',
+          features: ['Image generation', 'Content creation', 'Data analysis', 'AI chat assistant'],
+          setupUrl: 'https://manus.im',
+        },
+        {
+          id: 'dalle',
+          name: 'DALL-E 3',
+          category: 'ai',
+          description: 'AI image generation for ad creatives',
+          status: 'disconnected',
+          logo: '🎨',
+          features: ['Image generation', 'Ad creative creation', 'Custom styles'],
+          setupUrl: 'https://openai.com',
+        },
+      ]);
     }
   };
 
