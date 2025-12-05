@@ -71,6 +71,7 @@ const integrationsRoutes = require('./routes/integrations');
 const impactWebhookRoutes = require('./routes/webhooks/impact');
 const hotmartRoutes = require('./routes/hotmart');
 const productImagesRoutes = require('./routes/productImages');
+const aiRoutes = require('./routes/ai');
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -98,6 +99,7 @@ app.use('/api/analytics', authMiddleware, analyticsRoutes);
 app.use('/api/integrations', authMiddleware, integrationsRoutes);
 app.use('/api/hotmart', authMiddleware, hotmartRoutes);
 app.use('/api/products', authMiddleware, productImagesRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -116,7 +118,8 @@ app.get('/', (req, res) => {
       analytics: '/api/analytics',
       integrations: '/api/integrations',
       hotmart: '/api/hotmart',
-      product_images: '/api/products/:id/images'
+      product_images: '/api/products/:id/images',
+      ai: '/api/ai'
     }
   });
 });
