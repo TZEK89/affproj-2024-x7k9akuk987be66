@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+// Force rebuild - 2025-12-05
 const nextConfig = {
   reactStrictMode: true,
   env: {
