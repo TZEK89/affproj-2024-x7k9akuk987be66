@@ -147,6 +147,123 @@ router.get('/impact/test', async (req, res) => {
 });
 
 /**
+ * GET /api/integrations/hotmart/status
+ * Get Hotmart integration status
+ */
+router.get('/hotmart/status', async (req, res) => {
+  try {
+    // Check if credentials are configured
+    const isConfigured = !!(process.env.HOTMART_CLIENT_ID && process.env.HOTMART_CLIENT_SECRET);
+
+    // Get last sync info from database
+    const lastSyncQuery = await db.query(`
+      SELECT 
+        COUNT(*) as total_products,
+        MAX(updated_at) as last_sync_time
+      FROM products 
+      WHERE network = 'hotmart'
+    `);
+
+    const stats = lastSyncQuery.rows[0];
+
+    res.json({
+      isConfigured,
+      isConnected: isConfigured,
+      totalProducts: parseInt(stats.total_products) || 0,
+      lastSyncTime: stats.last_sync_time
+    });
+  } catch (error) {
+    console.error('Error getting Hotmart status:', error);
+    res.status(500).json({ error: 'Failed to get integration status' });
+  }
+});
+
+/**
+ * GET /api/integrations/hotmart/test
+ * Test Hotmart API connection
+ */
+router.get('/hotmart/test', async (req, res) => {
+  try {
+    // Check if credentials are configured
+    if (!process.env.HOTMART_CLIENT_ID || !process.env.HOTMART_CLIENT_SECRET) {
+      return res.status(400).json({
+        success: false,
+        error: 'Hotmart credentials not configured',
+        message: 'Please set HOTMART_CLIENT_ID and HOTMART_CLIENT_SECRET environment variables'
+      });
+    }
+
+    // Test authentication by getting access token
+    const axios = require('axios');
+    const authString = Buffer.from(
+      `${process.env.HOTMART_CLIENT_ID}:${process.env.HOTMART_CLIENT_SECRET}`
+    ).toString('base64');
+
+    const tokenResponse = await axios.post(
+      'https://api-sec-vlc.hotmart.com/security/oauth/token',
+      'grant_type=client_credentials',
+      {
+        headers: {
+          'Authorization': `Basic ${authString}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+
+    if (tokenResponse.data.access_token) {
+      res.json({
+        success: true,
+        message: 'Successfully connected to Hotmart',
+        authenticated: true
+      });
+    } else {
+      throw new Error('No access token received');
+    }
+  } catch (error) {
+    console.error('Error testing Hotmart connection:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to connect to Hotmart',
+      message: error.response?.data?.error || error.message
+    });
+  }
+});
+
+/**
+ * POST /api/integrations/hotmart/sync
+ * Trigger a sync of products from Hotmart
+ */
+router.post('/hotmart/sync', async (req, res) => {
+  try {
+    const { generateImages = true, batchSize = 50 } = req.body;
+
+    // Check if credentials are configured
+    if (!process.env.HOTMART_CLIENT_ID || !process.env.HOTMART_CLIENT_SECRET) {
+      return res.status(400).json({
+        success: false,
+        error: 'Hotmart credentials not configured'
+      });
+    }
+
+    // TODO: Implement actual Hotmart sync logic
+    // For now, return a placeholder response
+    res.json({
+      success: true,
+      message: 'Hotmart sync started (implementation pending)',
+      productsAdded: 0,
+      productsUpdated: 0
+    });
+  } catch (error) {
+    console.error('Error syncing Hotmart:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to sync Hotmart products',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/integrations/stats
  * Get overall integration statistics
  */
