@@ -1,0 +1,103 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "mcp-server-github",
+      "args": [],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "<your_github_token>"
+      },
+      "description": "GitHub MCP server for repository management, issues, PRs, and code operations",
+      "capabilities": [
+        "repository_management",
+        "code_search",
+        "issue_tracking",
+        "pull_requests",
+        "branch_operations"
+      ]
+    },
+    "railway": {
+      "command": "mcp-server-railway",
+      "args": [],
+      "env": {
+        "RAILWAY_API_TOKEN": "<your_railway_token>"
+      },
+      "description": "Railway MCP server for deployment management, service operations, and environment variables",
+      "capabilities": [
+        "deployment_management",
+        "service_operations",
+        "environment_variables",
+        "logs_access",
+        "project_management"
+      ],
+      "project_info": {
+        "project_id": "96bfb253-0353-4b4e-84be-0963767f04af",
+        "service_id": "bf23c3b7-5d3e-4d81-82d3-0823425a6812",
+        "environment_id": "94109b0f-e144-4a56-bc92-b04e62ec545c",
+        "backend_url": "https://affiliate-backend-production-df21.up.railway.app"
+      }
+    },
+    "vercel": {
+      "command": "mcp-server-vercel",
+      "args": [],
+      "env": {
+        "VERCEL_TOKEN": "<your_vercel_token>"
+      },
+      "description": "Vercel MCP server for frontend deployment, domain management, and project operations",
+      "capabilities": [
+        "deployment_management",
+        "domain_management",
+        "project_operations",
+        "environment_variables",
+        "logs_access"
+      ],
+      "project_info": {
+        "frontend_url": "https://affiliate-marketing-system-frontend.vercel.app",
+        "team_id": "<your_vercel_team_id>",
+        "project_name": "affiliate-marketing-system-frontend"
+      }
+    }
+  },
+  "setup_instructions": {
+    "github": {
+      "step1": "Generate a Personal Access Token at https://github.com/settings/tokens",
+      "step2": "Required scopes: repo, workflow, admin:org, admin:public_key, admin:repo_hook",
+      "step3": "Replace <your_github_token> in the config with your token"
+    },
+    "railway": {
+      "step1": "Get your Railway API token from https://railway.app/account/tokens",
+      "step2": "Replace <your_railway_token> in the config with your token",
+      "step3": "The project_info is already filled with the correct IDs for this project"
+    },
+    "vercel": {
+      "step1": "Generate a Vercel token at https://vercel.com/account/tokens",
+      "step2": "Required scopes: Read and Write access to deployments, projects, and domains",
+      "step3": "Replace <your_vercel_token> in the config with your token",
+      "step4": "Get your team_id from Vercel dashboard settings and update the config"
+    }
+  },
+  "usage_examples": {
+    "railway": {
+      "list_deployments": "manus-mcp-cli tool call deployment_list --server railway --input '{\"projectId\": \"96bfb253-0353-4b4e-84be-0963767f04af\", \"serviceId\": \"bf23c3b7-5d3e-4d81-82d3-0823425a6812\", \"environmentId\": \"94109b0f-e144-4a56-bc92-b04e62ec545c\"}'",
+      "get_logs": "manus-mcp-cli tool call deployment_logs --server railway --input '{\"deploymentId\": \"<deployment_id>\", \"limit\": 50}'",
+      "set_env_variable": "manus-mcp-cli tool call variable_set --server railway --input '{\"projectId\": \"96bfb253-0353-4b4e-84be-0963767f04af\", \"serviceId\": \"bf23c3b7-5d3e-4d81-82d3-0823425a6812\", \"environmentId\": \"94109b0f-e144-4a56-bc92-b04e62ec545c\", \"name\": \"VARIABLE_NAME\", \"value\": \"variable_value\"}'"
+    },
+    "vercel": {
+      "list_projects": "manus-mcp-cli tool call list_projects --server vercel",
+      "list_deployments": "manus-mcp-cli tool call list_deployments --server vercel --input '{\"projectName\": \"affiliate-marketing-system-frontend\"}'",
+      "get_deployment_logs": "manus-mcp-cli tool call get_deployment_logs --server vercel --input '{\"deploymentId\": \"<deployment_id>\"}'",
+      "manage_domains": "manus-mcp-cli tool call list_domains --server vercel --input '{\"projectName\": \"affiliate-marketing-system-frontend\"}'"
+    },
+    "github": {
+      "list_repos": "manus-mcp-cli tool call list_repositories --server github",
+      "get_repo_info": "manus-mcp-cli tool call get_repository --server github --input '{\"owner\": \"TZEK89\", \"repo\": \"affiliate-marketing-system\"}'",
+      "create_issue": "manus-mcp-cli tool call create_issue --server github --input '{\"owner\": \"TZEK89\", \"repo\": \"affiliate-marketing-system\", \"title\": \"Issue title\", \"body\": \"Issue description\"}'",
+      "search_code": "manus-mcp-cli tool call search_code --server github --input '{\"query\": \"hotmart repo:TZEK89/affiliate-marketing-system\"}'"
+    }
+  },
+  "important_notes": {
+    "security": "Never commit this file with real tokens to a public repository. Use environment variables or a secrets manager.",
+    "token_rotation": "Rotate your API tokens regularly for security best practices.",
+    "permissions": "Ensure each token has only the minimum required permissions for its intended use.",
+    "rate_limits": "Be aware of API rate limits for each service (GitHub: 5000/hour, Railway: varies, Vercel: varies)"
+  }
+}
