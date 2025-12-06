@@ -31,7 +31,7 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.CORS_ORIGIN === '*') {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -74,24 +74,33 @@ const hotmartRoutes = require('./routes/hotmart');
 const productImagesRoutes = require('./routes/productImages');
 const aiRoutes = require('./routes/ai');
 const adminRoutes = require('./routes/admin');
+const agentsRoutes = require('./routes/agents');
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
+// Health check endpoint (improved to actually test database)
+app.get('/api/health', async (req, res) => {
+  let dbStatus = 'disconnected';
+  try {
+    await pool.query('SELECT 1');
+    dbStatus = 'connected';
+  } catch (err) {
+    dbStatus = 'error: ' + err.message;
+  }
+  
   res.json({
     success: true,
     message: 'API is healthy',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
-    database: pool.totalCount > 0 ? 'connected' : 'disconnected'
+    database: dbStatus
   });
 });
 
 // API routes
 // Public routes (no auth required)
 app.use('/api/auth', authRoutes);
-app.use('/api/webhooks/impact', impactWebhookRoutes); // Webhooks don't need auth
-app.use('/api/webhooks/hotmart', hotmartWebhookRoutes); // Hotmart webhooks
-app.use('/api/admin', adminRoutes); // Admin endpoints (should add auth in production)
+app.use('/api/webhooks/impact', impactWebhookRoutes);
+app.use('/api/webhooks/hotmart', hotmartWebhookRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Protected routes (auth required)
 app.use('/api/products', authMiddleware, productsRoutes);
@@ -100,11 +109,13 @@ app.use('/api/campaigns', authMiddleware, campaignsRoutes);
 app.use('/api/subscribers', authMiddleware, subscribersRoutes);
 app.use('/api/conversions', authMiddleware, conversionsRoutes);
 app.use('/api/analytics', authMiddleware, analyticsRoutes);
-// Public integration test endpoints (no auth required)
-app.use('/api/integrations', integrationsRoutes);
 app.use('/api/hotmart', authMiddleware, hotmartRoutes);
 app.use('/api/products', authMiddleware, productImagesRoutes);
+
+// Public routes that have mixed auth (some endpoints public, some protected)
+app.use('/api/integrations', integrationsRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/agents', agentsRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -124,7 +135,8 @@ app.get('/', (req, res) => {
       integrations: '/api/integrations',
       hotmart: '/api/hotmart',
       product_images: '/api/products/:id/images',
-      ai: '/api/ai'
+      ai: '/api/ai',
+      agents: '/api/agents'
     }
   });
 });
