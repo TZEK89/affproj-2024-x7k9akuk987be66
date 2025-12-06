@@ -9,7 +9,7 @@ const db = require('../../db');
 
 class AgentExecutor {
   constructor() {
-    this.aiService = new AIService();
+    this.aiService = AIService; // AIService is exported as singleton
   }
 
   /**
@@ -373,3 +373,4 @@ Respond in JSON format:
 }
 
 module.exports = AgentExecutor;
+
