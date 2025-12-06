@@ -75,6 +75,7 @@ const productImagesRoutes = require('./routes/productImages');
 const aiRoutes = require('./routes/ai');
 const adminRoutes = require('./routes/admin');
 const agentsRoutes = require('./routes/agents');
+const agentsExecuteRoutes = require('./routes/agents-execute');
 
 // Health check endpoint (improved to actually test database)
 app.get('/api/health', async (req, res) => {
@@ -116,6 +117,7 @@ app.use('/api/products', authMiddleware, productImagesRoutes);
 app.use('/api/integrations', integrationsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/agents', agentsRoutes);
+app.use('/api/agents', agentsExecuteRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
