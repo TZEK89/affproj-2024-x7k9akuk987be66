@@ -26,6 +26,31 @@ router.get('/test', async (req, res) => {
 });
 
 /**
+ * Get affiliate products (from commissions data)
+ * GET /api/hotmart/affiliate-products
+ */
+router.get('/affiliate-products', async (req, res) => {
+  try {
+    const hotmart = new HotmartService();
+    const products = await hotmart.getAffiliateProducts({
+      maxResults: parseInt(req.query.limit) || 100
+    });
+
+    res.json({
+      success: true,
+      data: products,
+      note: 'Products discovered from sales/commissions in last 90 days'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch affiliate products',
+      error: error.message
+    });
+  }
+});
+
+/**
  * Start product sync
  * POST /api/hotmart/sync
  */
@@ -86,7 +111,7 @@ router.get('/sync/status', (req, res) => {
 });
 
 /**
- * Get Hotmart products
+ * Get Hotmart products (YOUR products as producer)
  * GET /api/hotmart/products
  */
 router.get('/products', async (req, res) => {
@@ -134,8 +159,8 @@ router.get('/commissions', async (req, res) => {
   try {
     const hotmart = new HotmartService();
     const commissions = await hotmart.getCommissions({
-      startDate: req.query.start_date,
-      endDate: req.query.end_date,
+      startDate: req.query.start_date ? parseInt(req.query.start_date) : undefined,
+      endDate: req.query.end_date ? parseInt(req.query.end_date) : undefined,
       productId: req.query.product_id,
       role: req.query.role,
       status: req.query.status,
@@ -161,8 +186,8 @@ router.get('/sales/summary', async (req, res) => {
   try {
     const hotmart = new HotmartService();
     const summary = await hotmart.getSalesSummary({
-      startDate: req.query.start_date,
-      endDate: req.query.end_date,
+      startDate: req.query.start_date ? parseInt(req.query.start_date) : undefined,
+      endDate: req.query.end_date ? parseInt(req.query.end_date) : undefined,
       productId: req.query.product_id
     });
 

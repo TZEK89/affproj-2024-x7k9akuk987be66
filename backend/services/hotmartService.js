@@ -1,10 +1,16 @@
 const axios = require('axios');
 
 /**
- * Hotmart API Service
+ * Hotmart API Service - Updated for Affiliate Focus
  * 
  * Handles OAuth 2.0 authentication and API requests to Hotmart
  * Documentation: https://developers.hotmart.com/
+ * 
+ * IMPORTANT: Hotmart API does NOT provide marketplace browsing.
+ * This service focuses on:
+ * 1. Getting products you're already affiliated with (via sales/commissions)
+ * 2. Tracking performance of those products
+ * 3. Managing your affiliate sales data
  */
 class HotmartService {
   constructor() {
@@ -12,7 +18,7 @@ class HotmartService {
     this.sandboxURL = 'https://sandbox.hotmart.com';
     this.clientId = process.env.HOTMART_CLIENT_ID;
     this.clientSecret = process.env.HOTMART_CLIENT_SECRET;
-    this.useSandbox = process.env.NODE_ENV !== 'production';
+    this.useSandbox = process.env.HOTMART_SANDBOX === 'true';
     
     // In-memory token storage (should be moved to database in production)
     this.accessToken = null;
@@ -126,7 +132,72 @@ class HotmartService {
   }
 
   /**
-   * Get list of products
+   * Get affiliate products from sales/commissions data
+   * This is the ONLY way to get products you're affiliated with via API
+   * @param {Object} options - Query options
+   * @returns {Promise<Object>} Products data extracted from commissions
+   */
+  async getAffiliateProducts(options = {}) {
+    try {
+      // Get last 90 days of commissions to find products
+      const endDate = Date.now();
+      const startDate = endDate - (90 * 24 * 60 * 60 * 1000); // 90 days ago
+
+      const commissions = await this.getCommissions({
+        startDate,
+        endDate,
+        role: 'AFFILIATE', // Only get commissions where you're the affiliate
+        maxResults: options.maxResults || 100
+      });
+
+      // Extract unique products from commissions
+      const productsMap = new Map();
+      
+      if (commissions.items) {
+        commissions.items.forEach(commission => {
+          const productId = commission.product?.id;
+          if (productId && !productsMap.has(productId)) {
+            productsMap.set(productId, {
+              id: commission.product.id,
+              name: commission.product.name,
+              ucode: commission.product.ucode,
+              has_co_production: commission.product.has_co_production,
+              // Add commission data
+              commission_percentage: commission.commission_percentage,
+              currency: commission.purchase?.price?.currency_value,
+              // Aggregate stats (will be calculated later)
+              total_sales: 0,
+              total_commission: 0
+            });
+          }
+          
+          // Update stats
+          if (productId && productsMap.has(productId)) {
+            const product = productsMap.get(productId);
+            product.total_sales++;
+            product.total_commission += commission.commission_value || 0;
+          }
+        });
+      }
+
+      return {
+        items: Array.from(productsMap.values()),
+        page_info: {
+          total_results: productsMap.size,
+          results_per_page: productsMap.size
+        }
+      };
+    } catch (error) {
+      console.error('Failed to get affiliate products:', error.message);
+      return {
+        items: [],
+        page_info: { total_results: 0, results_per_page: 0 }
+      };
+    }
+  }
+
+  /**
+   * Get list of products (YOUR products as a producer)
    * @param {Object} options - Query options
    * @returns {Promise<Object>} Products data
    */
@@ -136,7 +207,7 @@ class HotmartService {
       page_token: options.pageToken || undefined
     };
 
-    return await this.makeRequest('GET', '/payments/api/v1/products', params);
+    return await this.makeRequest('GET', '/products/api/v1/products', params);
   }
 
   /**
@@ -145,7 +216,7 @@ class HotmartService {
    * @returns {Promise<Object>} Product details
    */
   async getProduct(productId) {
-    return await this.makeRequest('GET', `/payments/api/v1/products/${productId}`);
+    return await this.makeRequest('GET', `/products/api/v1/products/${productId}`);
   }
 
   /**
@@ -154,7 +225,7 @@ class HotmartService {
    * @returns {Promise<Object>} Product offers
    */
   async getProductOffers(productId) {
-    return await this.makeRequest('GET', `/payments/api/v1/products/${productId}/offers`);
+    return await this.makeRequest('GET', `/products/api/v1/products/${productId}/offers`);
   }
 
   /**
@@ -163,7 +234,7 @@ class HotmartService {
    * @returns {Promise<Object>} Subscription plans
    */
   async getProductPlans(productId) {
-    return await this.makeRequest('GET', `/payments/api/v1/products/${productId}/plans`);
+    return await this.makeRequest('GET', `/products/api/v1/products/${productId}/plans`);
   }
 
   /**
@@ -255,9 +326,9 @@ class HotmartService {
       description: hotmartProduct.description || '',
       price: hotmartProduct.price?.value || 0,
       original_price: hotmartProduct.price?.original_value || hotmartProduct.price?.value || 0,
-      currency: hotmartProduct.price?.currency || 'USD',
+      currency: hotmartProduct.currency || hotmartProduct.price?.currency || 'USD',
       image_url: hotmartProduct.image_url || null,
-      product_url: hotmartProduct.affiliate_link || null,
+      product_url: hotmartProduct.affiliate_link || `https://app.hotmart.com/marketplace/products/${hotmartProduct.id}`,
       category: hotmartProduct.category || 'Digital Products',
       network: 'hotmart',
       network_id: hotmartProduct.id?.toString(),
@@ -271,7 +342,8 @@ class HotmartService {
         has_subscription: hotmartProduct.has_subscription || false,
         language: hotmartProduct.language,
         rating: hotmartProduct.rating,
-        sales_count: hotmartProduct.sales_count
+        sales_count: hotmartProduct.sales_count || hotmartProduct.total_sales,
+        total_commission: hotmartProduct.total_commission
       }
     };
   }
@@ -283,12 +355,19 @@ class HotmartService {
   async testConnection() {
     try {
       await this.authenticate();
-      const products = await this.getProducts({ maxResults: 1 });
+      
+      // Try to get affiliate products from commissions
+      const affiliateProducts = await this.getAffiliateProducts({ maxResults: 10 });
+      
+      // Also try to get producer products
+      const producerProducts = await this.getProducts({ maxResults: 1 });
       
       return {
         success: true,
         message: 'Successfully connected to Hotmart',
-        productCount: products.page_info?.total_results || 0
+        affiliateProductCount: affiliateProducts.page_info?.total_results || 0,
+        producerProductCount: producerProducts.page_info?.total_results || 0,
+        note: 'Affiliate products are discovered from sales/commissions data (last 90 days)'
       };
     } catch (error) {
       return {

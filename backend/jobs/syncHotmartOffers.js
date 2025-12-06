@@ -5,9 +5,9 @@ const db = require('../db');
 /**
  * Sync products from Hotmart to local database
  * 
- * This job fetches all available products from Hotmart and stores them
- * in the products table, avoiding duplicates.
- * Automatically generates product cover images using DALL-E 3.
+ * This job fetches affiliate products from Hotmart (via commissions data)
+ * and stores them in the products table, avoiding duplicates.
+ * Automatically generates product cover images using AI.
  */
 class HotmartSyncJob {
   constructor() {
@@ -27,7 +27,7 @@ class HotmartSyncJob {
    * Run the sync job
    * @param {Object} options - Sync options
    * @param {boolean} options.generateImages - Whether to generate images (default: true)
-   * @param {number} options.batchSize - Number of products per page (default: 50)
+   * @param {boolean} options.syncProducerProducts - Also sync products you created (default: false)
    * @returns {Promise<Object>} Sync statistics
    */
   async run(options = {}) {
@@ -39,31 +39,47 @@ class HotmartSyncJob {
       // Reset stats
       this.stats = { total: 0, new: 0, updated: 0, skipped: 0, errors: 0, imagesGenerated: 0 };
 
-      // Fetch products with pagination
-      let pageToken = null;
-      let hasMore = true;
+      // 1. Sync affiliate products (from commissions)
+      console.log('📦 Fetching affiliate products from commissions...');
+      try {
+        const affiliateProducts = await this.hotmart.getAffiliateProducts({
+          maxResults: 100
+        });
 
-      while (hasMore) {
+        if (affiliateProducts.items && affiliateProducts.items.length > 0) {
+          console.log(`✅ Found ${affiliateProducts.items.length} affiliate products`);
+          await this.processProducts(affiliateProducts.items, generateImages);
+        } else {
+          console.log('⚠️  No affiliate products found (no sales in last 90 days)');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching affiliate products:', error.message);
+        this.stats.errors++;
+      }
+
+      // 2. Optionally sync producer products
+      if (options.syncProducerProducts) {
+        console.log('📦 Fetching producer products...');
         try {
-          const response = await this.hotmart.getProducts({
-            maxResults: options.batchSize || 50,
-            pageToken
-          });
+          let pageToken = null;
+          let hasMore = true;
 
-          if (response.items && response.items.length > 0) {
-            await this.processProducts(response.items, generateImages);
+          while (hasMore) {
+            const response = await this.hotmart.getProducts({
+              maxResults: 50,
+              pageToken
+            });
+
+            if (response.items && response.items.length > 0) {
+              await this.processProducts(response.items, generateImages);
+            }
+
+            pageToken = response.page_info?.next_page_token;
+            hasMore = !!pageToken;
           }
-
-          // Check if there are more pages
-          pageToken = response.page_info?.next_page_token;
-          hasMore = !!pageToken;
-
-          console.log(`📄 Processed page, total so far: ${this.stats.total}`);
-
         } catch (error) {
-          console.error('❌ Error fetching products page:', error.message);
+          console.error('❌ Error fetching producer products:', error.message);
           this.stats.errors++;
-          break; // Stop pagination on error
         }
       }
 
