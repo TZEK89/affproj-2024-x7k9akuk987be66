@@ -76,6 +76,8 @@ const aiRoutes = require('./routes/ai');
 const adminRoutes = require('./routes/admin');
 const agentsRoutes = require('./routes/agents');
 const agentsExecuteRoutes = require('./routes/agents-execute');
+const browserController = require('./routes/browserController');
+const agenticRoutes = require('./routes/agenticRoutes');
 
 // Import job system for agent missions
 let jobSystem = null;
@@ -145,6 +147,8 @@ app.use('/api/integrations', integrationsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/agents', agentsRoutes);
 app.use('/api/agents', agentsExecuteRoutes);
+app.use('/api/browser', authMiddleware, browserController);
+app.use('/api/agents', authMiddleware, agenticRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -264,3 +268,4 @@ startServer().catch(error => {
   console.error('Failed to start server:', error);
   process.exit(1);
 });
+
