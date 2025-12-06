@@ -9,6 +9,58 @@ const AIService = require('../services/ai/AIService');
 const authenticateToken = require('../middleware/auth');
 
 /**
+ * GET /api/ai
+ * Get AI service overview and available capabilities
+ */
+router.get('/', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      name: 'AI Services',
+      version: '1.0.0',
+      capabilities: {
+        imageGeneration: {
+          description: 'Generate images using AI',
+          endpoint: 'POST /api/ai/generate-image',
+          providers: ['stability', 'midjourney']
+        },
+        contentGeneration: {
+          description: 'Generate text content (descriptions, ads, emails)',
+          endpoint: 'POST /api/ai/generate-content',
+          providers: ['manus', 'openai']
+        },
+        dataAnalysis: {
+          description: 'Analyze performance data and get insights',
+          endpoint: 'POST /api/ai/analyze',
+          providers: ['manus', 'openai']
+        },
+        chat: {
+          description: 'Chat with AI assistant',
+          endpoint: 'POST /api/ai/chat',
+          providers: ['manus', 'openai']
+        }
+      },
+      endpoints: [
+        'GET /api/ai - This overview',
+        'GET /api/ai/providers - List available AI providers',
+        'GET /api/ai/settings - Get your AI settings',
+        'PUT /api/ai/settings/:provider - Update provider settings',
+        'GET /api/ai/history - Generation history',
+        'GET /api/ai/stats - Usage statistics',
+        'POST /api/ai/generate-image - Generate images',
+        'POST /api/ai/generate-content - Generate text',
+        'POST /api/ai/analyze - Analyze data',
+        'POST /api/ai/chat - Chat with AI',
+        'POST /api/ai/test-connection - Test provider connection'
+      ]
+    });
+  } catch (error) {
+    console.error('AI overview error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+/**
  * POST /api/ai/generate-image
  * Generate an image using AI
  */
