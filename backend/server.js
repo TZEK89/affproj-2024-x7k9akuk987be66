@@ -69,6 +69,7 @@ const conversionsRoutes = require('./routes/conversions');
 const analyticsRoutes = require('./routes/analytics');
 const integrationsRoutes = require('./routes/integrations');
 const impactWebhookRoutes = require('./routes/webhooks/impact');
+const hotmartWebhookRoutes = require('./routes/webhooks/hotmart');
 const hotmartRoutes = require('./routes/hotmart');
 const productImagesRoutes = require('./routes/productImages');
 const aiRoutes = require('./routes/ai');
@@ -88,6 +89,7 @@ app.get('/api/health', (req, res) => {
 // Public routes (no auth required)
 app.use('/api/auth', authRoutes);
 app.use('/api/webhooks/impact', impactWebhookRoutes); // Webhooks don't need auth
+app.use('/api/webhooks/hotmart', hotmartWebhookRoutes); // Hotmart webhooks
 
 // Protected routes (auth required)
 app.use('/api/products', authMiddleware, productsRoutes);
