@@ -19,6 +19,18 @@ const db = require('../../db');
  */
 router.post('/', async (req, res) => {
   try {
+    // Verify Hotmart Hottok (if configured)
+    const hottok = req.headers['x-hotmart-hottok'];
+    const expectedHottok = process.env.HOTMART_HOTTOK;
+    
+    if (expectedHottok && hottok !== expectedHottok) {
+      console.warn('⚠️  Invalid Hotmart Hottok:', hottok);
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Invalid verification token' 
+      });
+    }
+    
     const event = req.body;
     
     console.log('📥 Hotmart webhook received:', {
