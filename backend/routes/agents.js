@@ -14,6 +14,18 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+
+// Helper function to safely parse JSON (handles both strings and already-parsed objects)
+const safeJsonParse = (value, defaultValue = null) => {
+  if (value === null || value === undefined) return defaultValue;
+  if (typeof value === "object") return value; // Already parsed
+  try {
+    return JSON.parse(value);
+  } catch (e) {
+    console.warn("JSON parse failed:", e.message);
+    return defaultValue;
+  }
+};
 const authenticateToken = require('../middleware/auth');
 
 // Import the job system (gracefully handle if not available)
@@ -242,8 +254,8 @@ router.post('/missions', authenticateToken, async (req, res) => {
           missionId: mission.id,
           platform: mission.platform,
           prompt: mission.prompt,
-          agents: JSON.parse(mission.agents),
-          parameters: JSON.parse(mission.parameters)
+          agents: safeJsonParse(mission.agents, []),
+          parameters: safeJsonParse(mission.parameters, {})
         });
         
         // Update mission status to queued
@@ -274,8 +286,8 @@ router.post('/missions', authenticateToken, async (req, res) => {
         platform: mission.platform,
         prompt: mission.prompt,
         status: queueStatus,
-        agents: JSON.parse(mission.agents),
-        parameters: JSON.parse(mission.parameters),
+        agents: safeJsonParse(mission.agents, []),
+        parameters: safeJsonParse(mission.parameters, {}),
         createdAt: mission.created_at
       },
       job: jobInfo,
@@ -338,9 +350,9 @@ router.get('/missions/:id', authenticateToken, async (req, res) => {
       success: true,
       mission: {
         ...mission,
-        agents: JSON.parse(mission.agents || '[]'),
-        parameters: JSON.parse(mission.parameters || '{}'),
-        results: mission.results ? JSON.parse(mission.results) : null,
+        agents: safeJsonParse(mission.agents, []),
+        parameters: safeJsonParse(mission.parameters, {}),
+        results: mission.results ? safeJsonParse(mission.results) : null,
         logs: logsResult.rows,
         discoveredProducts: productsResult.rows,
         jobStatus
@@ -799,8 +811,8 @@ router.post('/queue/retry/:missionId', authenticateToken, async (req, res) => {
         missionId: mission.id,
         platform: mission.platform,
         prompt: mission.prompt,
-        agents: JSON.parse(mission.agents),
-        parameters: JSON.parse(mission.parameters)
+        agents: safeJsonParse(mission.agents, []),
+        parameters: safeJsonParse(mission.parameters, {})
       });
       
       await db.query(`
@@ -820,3 +832,4 @@ router.post('/queue/retry/:missionId', authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
+
