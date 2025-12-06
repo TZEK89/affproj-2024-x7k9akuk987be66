@@ -73,6 +73,7 @@ const hotmartWebhookRoutes = require('./routes/webhooks/hotmart');
 const hotmartRoutes = require('./routes/hotmart');
 const productImagesRoutes = require('./routes/productImages');
 const aiRoutes = require('./routes/ai');
+const adminRoutes = require('./routes/admin');
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -90,6 +91,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/webhooks/impact', impactWebhookRoutes); // Webhooks don't need auth
 app.use('/api/webhooks/hotmart', hotmartWebhookRoutes); // Hotmart webhooks
+app.use('/api/admin', adminRoutes); // Admin endpoints (should add auth in production)
 
 // Protected routes (auth required)
 app.use('/api/products', authMiddleware, productsRoutes);
