@@ -77,30 +77,57 @@ const adminRoutes = require('./routes/admin');
 const agentsRoutes = require('./routes/agents');
 const agentsExecuteRoutes = require('./routes/agents-execute');
 
+// Import job system for agent missions
+let jobSystem = null;
+try {
+  jobSystem = require('./jobs');
+  console.log('📦 Job system module loaded');
+} catch (error) {
+  console.warn('⚠️ Job system module not available:', error.message);
+}
+
 // Health check endpoint (improved to actually test database)
 app.get('/api/health', async (req, res) => {
-  let dbStatus = 'disconnected';
   try {
-    await pool.query('SELECT 1');
-    dbStatus = 'connected';
-  } catch (err) {
-    dbStatus = 'error: ' + err.message;
+    const dbResult = await pool.query('SELECT NOW()');
+    
+    // Get job system status
+    let queueStatus = null;
+    if (jobSystem) {
+      try {
+        queueStatus = await jobSystem.healthCheck();
+      } catch (e) {
+        queueStatus = { healthy: false, error: e.message };
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'API is healthy',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      database: 'connected',
+      dbTime: dbResult.rows[0].now,
+      jobSystem: queueStatus || { status: 'not_configured' }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Health check failed',
+      error: error.message,
+      database: 'disconnected'
+    });
   }
-  
-  res.json({
-    success: true,
-    message: 'API is healthy',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    database: dbStatus
-  });
 });
 
-// API routes
-// Public routes (no auth required)
-app.use('/api/auth', authRoutes);
+// Webhook routes (no auth - must be accessible by external services)
 app.use('/api/webhooks/impact', impactWebhookRoutes);
 app.use('/api/webhooks/hotmart', hotmartWebhookRoutes);
+
+// Auth routes (public)
+app.use('/api/auth', authRoutes);
+
+// Admin routes (some public, some protected)
 app.use('/api/admin', adminRoutes);
 
 // Protected routes (auth required)
@@ -165,18 +192,75 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Configured' : 'Not configured'}`);
-});
+// Initialize job system and start server
+const startServer = async () => {
+  // Initialize job system if available
+  if (jobSystem) {
+    try {
+      const initialized = await jobSystem.initialize({ startWorkers: true });
+      if (initialized) {
+        console.log('✅ Agent job system initialized with workers');
+      } else {
+        console.log('⚠️ Agent job system running in degraded mode (Redis not available)');
+      }
+    } catch (error) {
+      console.error('❌ Failed to initialize job system:', error.message);
+      console.log('⚠️ Server will continue without job processing');
+    }
+  }
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  pool.end(() => {
-    console.log('Database pool closed');
-    process.exit(0);
+  // Start HTTP server
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'Configured' : 'Not configured'}`);
+    console.log(`📮 Redis: ${process.env.REDIS_URL ? 'Configured' : 'Not configured'}`);
   });
+
+  // Graceful shutdown handler
+  const gracefulShutdown = async (signal) => {
+    console.log(`\n${signal} signal received: starting graceful shutdown...`);
+
+    // Stop accepting new connections
+    server.close(async () => {
+      console.log('HTTP server closed');
+
+      // Shutdown job system if initialized
+      if (jobSystem && jobSystem.isInitialized && jobSystem.isInitialized()) {
+        try {
+          await jobSystem.shutdown();
+          console.log('Job system shut down');
+        } catch (error) {
+          console.error('Error shutting down job system:', error.message);
+        }
+      }
+
+      // Close database pool
+      try {
+        await pool.end();
+        console.log('Database pool closed');
+      } catch (error) {
+        console.error('Error closing database pool:', error.message);
+      }
+
+      console.log('Graceful shutdown complete');
+      process.exit(0);
+    });
+
+    // Force shutdown after 30 seconds
+    setTimeout(() => {
+      console.error('Could not close connections in time, forcefully shutting down');
+      process.exit(1);
+    }, 30000);
+  };
+
+  // Handle shutdown signals
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+};
+
+// Start the server
+startServer().catch(error => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
 });
