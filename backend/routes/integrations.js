@@ -9,6 +9,121 @@ const authMiddleware = require('../middleware/auth');
 let currentSyncJob = null;
 
 /**
+ * GET /api/integrations
+ * Get overview of all available integrations and their status
+ */
+router.get('/', async (req, res) => {
+  try {
+    // Check configuration status for each integration
+    const integrations = {
+      hotmart: {
+        name: 'Hotmart',
+        description: 'Brazilian digital product marketplace',
+        status: !!(process.env.HOTMART_CLIENT_ID && process.env.HOTMART_CLIENT_SECRET) ? 'configured' : 'not_configured',
+        capabilities: ['product_sync', 'webhooks', 'affiliate_links'],
+        docsUrl: 'https://developers.hotmart.com'
+      },
+      impact: {
+        name: 'Impact.com',
+        description: 'Global affiliate marketing platform',
+        status: !!(process.env.IMPACT_ACCOUNT_SID && process.env.IMPACT_AUTH_TOKEN) ? 'configured' : 'not_configured',
+        capabilities: ['product_sync', 'catalog_search', 'conversion_tracking'],
+        docsUrl: 'https://developer.impact.com'
+      },
+      clickbank: {
+        name: 'ClickBank',
+        description: 'Digital product affiliate network',
+        status: 'coming_soon',
+        capabilities: ['product_sync', 'marketplace_search'],
+        docsUrl: 'https://api.clickbank.com'
+      },
+      shareasale: {
+        name: 'ShareASale',
+        description: 'Affiliate marketing network',
+        status: 'coming_soon',
+        capabilities: ['product_sync', 'merchant_search'],
+        docsUrl: 'https://www.shareasale.com/api'
+      }
+    };
+
+    // Get product counts for configured integrations
+    const productCounts = await db.query(`
+      SELECT network, COUNT(*) as count 
+      FROM products 
+      GROUP BY network
+    `);
+
+    // Add product counts to integrations
+    for (const row of productCounts.rows) {
+      if (integrations[row.network]) {
+        integrations[row.network].productCount = parseInt(row.count);
+      }
+    }
+
+    res.json({
+      success: true,
+      integrations,
+      summary: {
+        total: Object.keys(integrations).length,
+        configured: Object.values(integrations).filter(i => i.status === 'configured').length,
+        comingSoon: Object.values(integrations).filter(i => i.status === 'coming_soon').length
+      }
+    });
+  } catch (error) {
+    console.error('Error getting integrations overview:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to get integrations overview' 
+    });
+  }
+});
+
+/**
+ * GET /api/integrations/status
+ * Get quick status of all integrations (authenticated)
+ */
+router.get('/status', authMiddleware, async (req, res) => {
+  try {
+    const statuses = {
+      hotmart: {
+        configured: !!(process.env.HOTMART_CLIENT_ID && process.env.HOTMART_CLIENT_SECRET),
+        healthy: true // Would add real health check here
+      },
+      impact: {
+        configured: !!(process.env.IMPACT_ACCOUNT_SID && process.env.IMPACT_AUTH_TOKEN),
+        healthy: true
+      }
+    };
+
+    // Get last sync times
+    const lastSyncs = await db.query(`
+      SELECT network, MAX(updated_at) as last_sync
+      FROM products
+      WHERE network IN ('hotmart', 'impact')
+      GROUP BY network
+    `);
+
+    for (const row of lastSyncs.rows) {
+      if (statuses[row.network]) {
+        statuses[row.network].lastSync = row.last_sync;
+      }
+    }
+
+    res.json({
+      success: true,
+      statuses,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error getting integration statuses:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+/**
  * GET /api/integrations/impact/status
  * Get Impact.com integration status
  */
@@ -60,90 +175,103 @@ router.post('/impact/sync', authMiddleware, async (req, res) => {
       fullSync: req.body.fullSync !== false,
       campaignId: req.body.campaignId || null,
       maxProducts: req.body.maxProducts || null,
-      inStockOnly: req.body.inStockOnly !== false,
-      requireImage: req.body.requireImage !== false,
-      minPrice: req.body.minPrice || null,
-      maxPrice: req.body.maxPrice || null,
-      category: req.body.category || null,
-      withPromotions: req.body.withPromotions || false
+      inStockOnly: req.body.inStockOnly !== false
     };
 
-    // Start sync job
-    currentSyncJob = new ImpactOfferSync();
+    console.log('Starting Impact.com sync with options:', options);
 
-    // Run sync in background
-    currentSyncJob.sync(options)
-      .then(stats => {
-        console.log('Sync completed:', stats);
+    // Create a new sync job
+    currentSyncJob = new ImpactOfferSync({
+      db,
+      impactService,
+      onProgress: (stats) => {
+        console.log('Sync progress:', stats);
+      },
+      onComplete: (stats) => {
+        console.log('Sync complete:', stats);
         currentSyncJob = null;
-      })
-      .catch(error => {
-        console.error('Sync failed:', error);
+      },
+      onError: (error) => {
+        console.error('Sync error:', error);
         currentSyncJob = null;
-      });
+      }
+    });
+
+    // Start the sync
+    currentSyncJob.start(options);
 
     res.json({ 
       message: 'Sync started',
-      options 
+      options
     });
   } catch (error) {
-    console.error('Error starting sync:', error);
-    currentSyncJob = null;
+    console.error('Error starting Impact.com sync:', error);
     res.status(500).json({ error: 'Failed to start sync' });
   }
 });
 
 /**
  * GET /api/integrations/impact/sync/status
- * Get current sync job status
+ * Get current sync status
  */
-router.get('/impact/sync/status', (req, res) => {
-  if (!currentSyncJob) {
-    return res.json({
-      isSyncing: false,
-      message: 'No sync in progress'
-    });
-  }
-
-  res.json({
-    isSyncing: true,
-    stats: currentSyncJob.getStats()
-  });
-});
-
-/**
- * GET /api/integrations/impact/catalogs
- * List available catalogs from Impact.com
- */
-router.get('/impact/catalogs', async (req, res) => {
+router.get('/impact/sync/status', authMiddleware, async (req, res) => {
   try {
-    const catalogs = await impactService.listCatalogs();
-    res.json({ catalogs });
-  } catch (error) {
-    console.error('Error fetching catalogs:', error);
-    res.status(500).json({ error: 'Failed to fetch catalogs' });
-  }
-});
+    if (currentSyncJob === null) {
+      return res.json({ 
+        isSyncing: false,
+        message: 'No sync in progress'
+      });
+    }
 
-/**
- * GET /api/integrations/impact/test
- * Test Impact.com API connection
- */
-router.get('/impact/test', async (req, res) => {
-  try {
-    const catalogs = await impactService.listCatalogs();
+    const stats = currentSyncJob.getStats();
     res.json({
-      success: true,
-      message: 'Successfully connected to Impact.com',
-      catalogCount: catalogs.length
+      isSyncing: true,
+      stats
     });
   } catch (error) {
-    console.error('Error testing Impact.com connection:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to connect to Impact.com',
-      message: error.message
+    console.error('Error getting sync status:', error);
+    res.status(500).json({ error: 'Failed to get sync status' });
+  }
+});
+
+/**
+ * POST /api/integrations/impact/sync/cancel
+ * Cancel current sync
+ */
+router.post('/impact/sync/cancel', authMiddleware, async (req, res) => {
+  try {
+    if (currentSyncJob === null) {
+      return res.status(400).json({ error: 'No sync in progress' });
+    }
+
+    currentSyncJob.cancel();
+    currentSyncJob = null;
+
+    res.json({ message: 'Sync cancelled' });
+  } catch (error) {
+    console.error('Error cancelling sync:', error);
+    res.status(500).json({ error: 'Failed to cancel sync' });
+  }
+});
+
+/**
+ * GET /api/integrations/impact/catalog
+ * Search Impact.com catalog directly
+ */
+router.get('/impact/catalog', authMiddleware, async (req, res) => {
+  try {
+    const { query, page = 1, pageSize = 20 } = req.query;
+    
+    const results = await impactService.searchCatalog({
+      query,
+      page: parseInt(page),
+      pageSize: parseInt(pageSize)
     });
+
+    res.json(results);
+  } catch (error) {
+    console.error('Error searching Impact.com catalog:', error);
+    res.status(500).json({ error: 'Failed to search catalog' });
   }
 });
 
@@ -153,137 +281,31 @@ router.get('/impact/test', async (req, res) => {
  */
 router.get('/hotmart/status', authMiddleware, async (req, res) => {
   try {
-    // Check if credentials are configured
     const isConfigured = !!(process.env.HOTMART_CLIENT_ID && process.env.HOTMART_CLIENT_SECRET);
-
-    // Get last sync info from database
-    const lastSyncQuery = await db.query(`
-      SELECT 
-        COUNT(*) as total_products,
-        MAX(updated_at) as last_sync_time
-      FROM products 
-      WHERE network = 'hotmart'
+    
+    // Get product count
+    const result = await db.query(`
+      SELECT COUNT(*) as count FROM products WHERE network = 'hotmart'
     `);
-
-    const stats = lastSyncQuery.rows[0];
-
+    
+    // Get conversion count
+    const convResult = await db.query(`
+      SELECT COUNT(*) as count FROM conversions WHERE network = 'hotmart'
+    `);
+    
     res.json({
+      success: true,
       isConfigured,
       isConnected: isConfigured,
-      totalProducts: parseInt(stats.total_products) || 0,
-      lastSyncTime: stats.last_sync_time
+      webhookUrl: process.env.HOTMART_HOTTOK ? 'configured' : 'not_configured',
+      stats: {
+        products: parseInt(result.rows[0].count),
+        conversions: parseInt(convResult.rows[0].count)
+      }
     });
   } catch (error) {
     console.error('Error getting Hotmart status:', error);
-    res.status(500).json({ error: 'Failed to get integration status' });
-  }
-});
-
-/**
- * GET /api/integrations/hotmart/test
- * Test Hotmart API connection
- */
-router.get('/hotmart/test', async (req, res) => {
-  try {
-    // Check if credentials are configured
-    if (!process.env.HOTMART_CLIENT_ID || !process.env.HOTMART_CLIENT_SECRET) {
-      return res.status(400).json({
-        success: false,
-        error: 'Hotmart credentials not configured',
-        message: 'Please set HOTMART_CLIENT_ID and HOTMART_CLIENT_SECRET environment variables'
-      });
-    }
-
-    // Test authentication by getting access token
-    const axios = require('axios');
-    const authString = Buffer.from(
-      `${process.env.HOTMART_CLIENT_ID}:${process.env.HOTMART_CLIENT_SECRET}`
-    ).toString('base64');
-
-    const tokenResponse = await axios.post(
-      'https://api-sec-vlc.hotmart.com/security/oauth/token',
-      'grant_type=client_credentials',
-      {
-        headers: {
-          'Authorization': `Basic ${authString}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      }
-    );
-
-    if (tokenResponse.data.access_token) {
-      res.json({
-        success: true,
-        message: 'Successfully connected to Hotmart',
-        authenticated: true
-      });
-    } else {
-      throw new Error('No access token received');
-    }
-  } catch (error) {
-    console.error('Error testing Hotmart connection:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to connect to Hotmart',
-      message: error.response?.data?.error || error.message
-    });
-  }
-});
-
-/**
- * POST /api/integrations/hotmart/sync
- * Trigger a sync of products from Hotmart
- */
-router.post('/hotmart/sync', authMiddleware, async (req, res) => {
-  try {
-    const { generateImages = true, batchSize = 50 } = req.body;
-
-    // Check if credentials are configured
-    if (!process.env.HOTMART_CLIENT_ID || !process.env.HOTMART_CLIENT_SECRET) {
-      return res.status(400).json({
-        success: false,
-        error: 'Hotmart credentials not configured'
-      });
-    }
-
-    // TODO: Implement actual Hotmart sync logic
-    // For now, return a placeholder response
-    res.json({
-      success: true,
-      message: 'Hotmart sync started (implementation pending)',
-      productsAdded: 0,
-      productsUpdated: 0
-    });
-  } catch (error) {
-    console.error('Error syncing Hotmart:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to sync Hotmart products',
-      message: error.message
-    });
-  }
-});
-
-/**
- * GET /api/integrations/stats
- * Get overall integration statistics
- */
-router.get('/stats', authMiddleware, async (req, res) => {
-  try {
-    const stats = await db.query(`
-      SELECT 
-        network,
-        COUNT(*) as product_count,
-        COUNT(DISTINCT network_name) as program_count,
-        MAX(updated_at) as last_updated
-      FROM products
-      GROUP BY network
-    `);
-
-    res.json({ stats: stats.rows });
-  } catch (error) {
-    console.error('Error getting integration stats:', error);
-    res.status(500).json({ error: 'Failed to get statistics' });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
