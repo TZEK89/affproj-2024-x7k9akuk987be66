@@ -4,6 +4,8 @@
  */
 
 const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
 
 class HotmartAutomation {
   constructor(options = {}) {
@@ -68,11 +70,54 @@ class HotmartAutomation {
     console.log('[HotmartAutomation] Logging in to Hotmart...');
 
     try {
+      // STEP 0: Try loading saved cookies first
+      const cookiesPath = '/tmp/hotmart_cookies.json';
+      try {
+        if (fs.existsSync(cookiesPath)) {
+          console.log('[HotmartAutomation] Found saved cookies, attempting to use them...');
+          const cookies = JSON.parse(fs.readFileSync(cookiesPath, 'utf8'));
+          await this.page.context().addCookies(cookies);
+          
+          // Navigate to dashboard directly
+          await this.page.goto('https://app.hotmart.com/dashboard', {
+            waitUntil: 'networkidle',
+            timeout: 15000
+          });
+          await this.page.waitForTimeout(3000);
+          
+          // Check if we're logged in (not on login/sso page)
+          const currentUrl = this.page.url();
+          if (!currentUrl.includes('login') && !currentUrl.includes('sso.hotmart.com')) {
+            console.log('[HotmartAutomation] ✅ Logged in using saved cookies!');
+            this.isLoggedIn = true;
+            return { success: true, method: 'cookies', url: currentUrl };
+          }
+          console.log('[HotmartAutomation] Cookies expired, proceeding with fresh login...');
+        }
+      } catch (e) {
+        console.log('[HotmartAutomation] No saved cookies or error loading them:', e.message);
+      }
+
       // Navigate to Hotmart login page
       await this.page.goto('https://app.hotmart.com/login', {
         waitUntil: 'networkidle',
         timeout: this.options.timeout
       });
+
+      // Dismiss cookie consent popup if present
+      try {
+        await this.page.evaluate(() => {
+          const acceptBtn = Array.from(document.querySelectorAll('button'))
+            .find(b => b.textContent && b.textContent.includes('Accept all'));
+          if (acceptBtn) {
+            acceptBtn.click();
+            console.log('Cookie popup dismissed');
+          }
+        });
+        await this.page.waitForTimeout(1000);
+      } catch (e) {
+        // Popup might not exist, continue
+      }
 
       // Wait for login form (actual Hotmart selector)
       await this.page.waitForSelector('#username', {
@@ -114,22 +159,28 @@ class HotmartAutomation {
       // Wait a bit for any redirects
       await this.page.waitForTimeout(3000);
 
-      // Check for 2FA verification page
-      const currentUrl = this.page.url();
-      if (currentUrl.includes('verify') || currentUrl.includes('2fa') || currentUrl.includes('mfa')) {
-        console.log('[HotmartAutomation] 2FA verification detected');
-        console.log('[HotmartAutomation] ⚠️  Please complete 2FA verification manually in the browser');
-        console.log('[HotmartAutomation] Waiting for 2FA completion (60 seconds)...');
+      // Check for email verification page
+      const verificationUrl = this.page.url();
+      const hasVerificationPage = verificationUrl.includes('verification') || 
+        verificationUrl.includes('2fa') ||
+        await this.page.$('text=Two-step verification').catch(() => null) ||
+        await this.page.$('text=verification code').catch(() => null);
+
+      if (hasVerificationPage) {
+        console.log('[HotmartAutomation] ⚠️  EMAIL VERIFICATION REQUIRED!');
+        console.log('[HotmartAutomation] 📧 Check your email for the 6-digit code');
+        console.log('[HotmartAutomation] ⏳ Waiting up to 120 seconds for verification...');
         
-        // Wait for user to complete 2FA
-        await this.page.waitForNavigation({
-          waitUntil: 'networkidle',
-          timeout: 60000
-        }).catch(() => {
-          throw new Error('2FA verification timeout - please complete 2FA within 60 seconds');
-        });
-        
-        console.log('[HotmartAutomation] 2FA completed, continuing...');
+        // Wait for user to complete verification and be redirected
+        try {
+          await this.page.waitForURL(url => 
+            url.includes('app.hotmart.com') && !url.includes('sso') && !url.includes('login'),
+            { timeout: 120000 }
+          );
+          console.log('[HotmartAutomation] ✅ Verification completed!');
+        } catch (e) {
+          throw new Error('Email verification timeout - please complete verification within 120 seconds');
+        }
       }
 
       // Check if login was successful by looking for dashboard elements
@@ -142,6 +193,15 @@ class HotmartAutomation {
           throw new Error(`Login failed: ${errorText}`);
         }
         throw new Error('Login failed: Still on login page');
+      }
+
+      // Save cookies for future logins
+      try {
+        const cookies = await this.page.context().cookies();
+        fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
+        console.log('[HotmartAutomation] ✅ Cookies saved for future logins!');
+      } catch (e) {
+        console.log('[HotmartAutomation] Warning: Could not save cookies:', e.message);
       }
 
       this.isLoggedIn = true;

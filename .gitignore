@@ -4,4 +4,7 @@ node_modules/
 dist/ 
 .next/ 
 build/ 
-*.log 
+*.log
+
+# Hotmart cookies (contains sensitive session data)
+hotmart_cookies.json
