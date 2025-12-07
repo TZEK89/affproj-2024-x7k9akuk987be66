@@ -376,6 +376,7 @@ class HotmartAutomation {
 
   /**
    * Extract product cards from current page
+   * UPDATED: Uses text-based extraction for dynamically rendered content
    */
   async extractProductCards(maxProducts = 10) {
     if (!this.page) {
@@ -385,52 +386,99 @@ class HotmartAutomation {
     console.log(`[HotmartAutomation] Extracting up to ${maxProducts} products...`);
 
     try {
-      // Wait for products to be visible
-      await this.page.waitForSelector('[class*="product"], [class*="card"], [data-testid*="product"], article', {
-        timeout: 10000
-      }).catch(() => {
-        console.log('[HotmartAutomation] No standard product containers found, trying alternative selectors...');
-      });
-
-      // Try multiple selectors for product cards
-      const productSelectors = [
-        '[class*="ProductCard"]',
-        '[class*="product-card"]',
-        '[data-testid*="product"]',
-        'article[class*="card"]',
-        '[class*="marketplace"] [class*="card"]',
-        'div[class*="hot-product"]',
-        '.product-item',
-        '[class*="GridItem"]'
-      ];
-
-      let products = [];
+      // Wait for the page body to be ready
+      await this.page.waitForSelector('body', { timeout: 10000 });
       
-      for (const selector of productSelectors) {
-        const elements = await this.page.$$(selector);
-        if (elements.length > 0) {
-          console.log(`[HotmartAutomation] Found ${elements.length} products with selector: ${selector}`);
-          
-          for (let i = 0; i < Math.min(elements.length, maxProducts); i++) {
-            try {
-              const product = await this.extractProductData(elements[i]);
-              if (product && product.name) {
-                products.push(product);
-              }
-            } catch (e) {
-              console.log(`[HotmartAutomation] Error extracting product ${i}:`, e.message);
-            }
-          }
-          
-          if (products.length > 0) break;
-        }
-      }
+      // Wait for dynamic content to load
+      await this.page.waitForTimeout(3000);
 
-      // If no products found with selectors, try generic approach
-      if (products.length === 0) {
-        console.log('[HotmartAutomation] Trying generic extraction...');
-        products = await this.extractProductsGeneric(maxProducts);
-      }
+      console.log('[HotmartAutomation] Extracting products using page content analysis...');
+      
+      // Use page.evaluate to extract data from the rendered page
+      const products = await this.page.evaluate((maxCount) => {
+        const results = [];
+        
+        // Find all links on the page
+        const allLinks = Array.from(document.querySelectorAll('a'));
+        
+        // Filter for product links (they contain product info in their text)
+        const productLinks = allLinks.filter(link => {
+          const text = link.textContent || '';
+          // Product cards contain temperature (°), rating (★), and commission text
+          return text.includes('°') && 
+                 text.includes('Commission') &&
+                 text.trim().length > 50; // Substantial content
+        });
+
+        console.log(`Found ${productLinks.length} potential product cards`);
+
+        for (let i = 0; i < Math.min(productLinks.length, maxCount); i++) {
+          const link = productLinks[i];
+          const fullText = link.textContent || '';
+          const href = link.getAttribute('href') || '';
+
+          try {
+            // Extract product name (usually the longest text before "Commission")
+            const lines = fullText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            let productName = '';
+            
+            for (const line of lines) {
+              if (!line.includes('°') && 
+                  !line.includes('★') && 
+                  !line.includes('Commission') &&
+                  !line.includes('Max. price') &&
+                  !line.startsWith('$') &&
+                  !line.startsWith('€') &&
+                  !line.startsWith('R$') &&
+                  line.length > 3 &&
+                  line.length < 100) {
+                productName = line;
+                break;
+              }
+            }
+
+            // Extract temperature (format: "21°" or "150°")
+            const tempMatch = fullText.match(/(\d+)°/);
+            const temperature = tempMatch ? parseInt(tempMatch[1]) : null;
+
+            // Extract rating (format: "3.8 (8)" or "0 (0)")
+            const ratingMatch = fullText.match(/([\d.]+)\s*[★]?\s*\((\d+)\)/);
+            const rating = ratingMatch ? parseFloat(ratingMatch[1]) : null;
+            const reviewCount = ratingMatch ? parseInt(ratingMatch[2]) : 0;
+
+            // Extract commission (format: "$2.23" or "€2.20")
+            const commissionMatch = fullText.match(/Commission[^$€R]*?([$€R$]+[\d,.]+)/);
+            const commission = commissionMatch ? commissionMatch[1] : null;
+
+            // Extract max price (format: "$9.99" or "€5.00")
+            const priceMatch = fullText.match(/Max\.\s*price[^$€R]*?([$€R$]+[\d,.]+)/);
+            const maxPrice = priceMatch ? priceMatch[1] : null;
+
+            // Extract image
+            const img = link.querySelector('img');
+            const imageUrl = img ? (img.getAttribute('src') || img.getAttribute('data-src')) : null;
+
+            // Only add if we got a product name
+            if (productName) {
+              results.push({
+                name: productName,
+                url: href.startsWith('http') ? href : `https://app.hotmart.com${href}`,
+                temperature: temperature,
+                rating: rating,
+                reviewCount: reviewCount,
+                commission: commission,
+                price: maxPrice,
+                imageUrl: imageUrl,
+                category: null // Will be extracted from product details page
+              });
+            }
+          } catch (error) {
+            console.log(`Error extracting product ${i}:`, error.message);
+          }
+        }
+
+        return results;
+      }, maxProducts);
 
       console.log(`[HotmartAutomation] Extracted ${products.length} products`);
       return products;
@@ -443,71 +491,63 @@ class HotmartAutomation {
 
   /**
    * Extract data from a single product element
+   * UPDATED: Simplified to work with text content
    */
   async extractProductData(element) {
-    const product = {
-      name: null,
-      price: null,
-      commission: null,
-      category: null,
-      rating: null,
-      url: null,
-      imageUrl: null
-    };
-
     try {
-      // Extract name
-      const nameEl = await element.$('h2, h3, h4, [class*="title"], [class*="name"], [class*="Title"]');
-      if (nameEl) {
-        product.name = await nameEl.textContent();
-        product.name = product.name?.trim();
+      const text = await element.evaluate(el => el.textContent);
+      const href = await element.evaluate(el => {
+        const link = el.tagName === 'A' ? el : el.querySelector('a');
+        return link ? link.getAttribute('href') : null;
+      });
+
+      // Parse the text content
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      
+      let productName = '';
+      for (const line of lines) {
+        if (!line.includes('°') && 
+            !line.includes('★') && 
+            !line.includes('Commission') &&
+            !line.includes('Max. price') &&
+            !line.startsWith('$') &&
+            !line.startsWith('€') &&
+            !line.startsWith('R$') &&
+            line.length > 3 &&
+            line.length < 100) {
+          productName = line;
+          break;
+        }
       }
 
-      // Extract price
-      const priceEl = await element.$('[class*="price"], [class*="Price"], [class*="valor"]');
-      if (priceEl) {
-        product.price = await priceEl.textContent();
-        product.price = product.price?.trim();
-      }
+      const tempMatch = text.match(/(\d+)°/);
+      const temperature = tempMatch ? parseInt(tempMatch[1]) : null;
 
-      // Extract commission
-      const commissionEl = await element.$('[class*="commission"], [class*="Commission"], [class*="comissao"]');
-      if (commissionEl) {
-        product.commission = await commissionEl.textContent();
-        product.commission = product.commission?.trim();
-      }
+      const ratingMatch = text.match(/([\d.]+)\s*[★]?\s*\((\d+)\)/);
+      const rating = ratingMatch ? parseFloat(ratingMatch[1]) : null;
+      const reviewCount = ratingMatch ? parseInt(ratingMatch[2]) : 0;
 
-      // Extract category
-      const categoryEl = await element.$('[class*="category"], [class*="Category"], [class*="categoria"]');
-      if (categoryEl) {
-        product.category = await categoryEl.textContent();
-        product.category = product.category?.trim();
-      }
+      const commissionMatch = text.match(/Commission[^$€R]*?([$€R$]+[\d,.]+)/);
+      const commission = commissionMatch ? commissionMatch[1] : null;
 
-      // Extract rating
-      const ratingEl = await element.$('[class*="rating"], [class*="Rating"], [class*="star"]');
-      if (ratingEl) {
-        product.rating = await ratingEl.textContent();
-        product.rating = product.rating?.trim();
-      }
+      const priceMatch = text.match(/Max\.\s*price[^$€R]*?([$€R$]+[\d,.]+)/);
+      const maxPrice = priceMatch ? priceMatch[1] : null;
 
-      // Extract URL
-      const linkEl = await element.$('a[href*="product"], a[href*="hotmart"]');
-      if (linkEl) {
-        product.url = await linkEl.getAttribute('href');
-      }
-
-      // Extract image
-      const imgEl = await element.$('img');
-      if (imgEl) {
-        product.imageUrl = await imgEl.getAttribute('src');
-      }
-
+      return {
+        name: productName,
+        url: href,
+        temperature: temperature,
+        rating: rating,
+        reviewCount: reviewCount,
+        commission: commission,
+        price: maxPrice,
+        category: null,
+        imageUrl: null
+      };
     } catch (error) {
       console.log('[HotmartAutomation] Error extracting product data:', error.message);
+      return null;
     }
-
-    return product;
   }
 
   /**
