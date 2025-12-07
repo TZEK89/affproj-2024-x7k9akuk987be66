@@ -221,3 +221,72 @@ export const integrationsApi = {
     return response.data;
   },
 };
+
+// Agents & Missions API
+export const agentsApi = {
+  // Missions
+  getAllMissions: async (params?: { limit?: number; offset?: number; status?: string }) => {
+    const response = await apiClient.get('/agents/missions', { params });
+    return response.data;
+  },
+  getMissionById: async (id: string) => {
+    const response = await apiClient.get(`/agents/missions/${id}`);
+    return response.data;
+  },
+  createMission: async (data: {
+    prompt: string;
+    platform: string;
+    agents?: string[];
+    parameters?: any;
+  }) => {
+    const response = await apiClient.post('/agents/missions', data);
+    return response.data;
+  },
+  deleteMission: async (id: string) => {
+    const response = await apiClient.delete(`/agents/missions/${id}`);
+    return response.data;
+  },
+  getMissionJobStatus: async (id: string) => {
+    const response = await apiClient.get(`/agents/missions/${id}/job-status`);
+    return response.data;
+  },
+  
+  // Discovered Products
+  getDiscoveredProducts: async (params?: { 
+    limit?: number; 
+    offset?: number; 
+    missionId?: string;
+    minScore?: number;
+  }) => {
+    const response = await apiClient.get('/agents/discovered-products', { params });
+    return response.data;
+  },
+  promoteProduct: async (id: string) => {
+    const response = await apiClient.post(`/agents/discovered-products/${id}/convert`);
+    return response.data;
+  },
+  updateDiscoveredProduct: async (id: string, data: any) => {
+    const response = await apiClient.put(`/agents/discovered-products/${id}`, data);
+    return response.data;
+  },
+  affiliateWithProduct: async (id: string) => {
+    const response = await apiClient.post(`/agents/discovered-products/${id}/affiliate`);
+    return response.data;
+  },
+  
+  // Agent Status
+  getAgentStatus: async () => {
+    const response = await apiClient.get('/agents');
+    return response.data;
+  },
+  
+  // Execution
+  executeAgenticMission: async (id: string, credentials?: any) => {
+    const response = await apiClient.post(`/agents/execute-agentic/${id}`, { credentials });
+    return response.data;
+  },
+  executeScriptedMission: async (id: string) => {
+    const response = await apiClient.post(`/agents/execute/${id}`);
+    return response.data;
+  },
+};

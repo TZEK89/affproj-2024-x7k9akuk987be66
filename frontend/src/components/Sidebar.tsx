@@ -12,11 +12,15 @@ import {
   Settings,
   Zap,
   Network,
+  Brain,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Missions', href: '/missions', icon: Brain },
+  { name: 'Discovery', href: '/discovery', icon: Sparkles },
   { name: 'Offers', href: '/offers', icon: Target },
   { name: 'Campaigns', href: '/campaigns', icon: Megaphone },
   { name: 'Assets', href: '/assets', icon: Image },
