@@ -172,14 +172,38 @@ class HotmartAutomation {
         console.log('[HotmartAutomation] ⏳ Waiting up to 120 seconds for verification...');
         
         // Wait for user to complete verification and be redirected
-        try {
-          await this.page.waitForURL(url => 
-            url.includes('app.hotmart.com') && !url.includes('sso') && !url.includes('login'),
-            { timeout: 120000 }
-          );
-          console.log('[HotmartAutomation] ✅ Verification completed!');
-        } catch (e) {
-          throw new Error('Email verification timeout - please complete verification within 120 seconds');
+        // Use polling instead of waitForURL to ensure we actually wait 120 seconds
+        const startTime = Date.now();
+        const timeout = 120000; // 120 seconds
+        let isVerified = false;
+        
+        while (Date.now() - startTime < timeout) {
+          await this.page.waitForTimeout(2000); // Check every 2 seconds
+          
+          const currentUrl = this.page.url();
+          isVerified = currentUrl.includes('app.hotmart.com') && 
+                       !currentUrl.includes('sso') && 
+                       !currentUrl.includes('login') &&
+                       !currentUrl.includes('verification');
+          
+          if (isVerified) {
+            console.log('[HotmartAutomation] ✅ Verification completed!');
+            break;
+          }
+          
+          // Log progress every 10 seconds
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          if (elapsed % 10 === 0 && elapsed > 0) {
+            console.log(`[HotmartAutomation] Still waiting for verification... (${elapsed}s elapsed)`);
+          }
+        }
+        
+        // Check final URL after timeout
+        if (!isVerified) {
+          const finalUrl = this.page.url();
+          if (finalUrl.includes('verification') || finalUrl.includes('verify')) {
+            throw new Error('Email verification timeout - please complete verification within 120 seconds');
+          }
         }
       }
 
