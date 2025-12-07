@@ -378,6 +378,10 @@ class HotmartAutomation {
    * Extract product cards from current page
    * UPDATED: Uses text-based extraction for dynamically rendered content
    */
+  /**
+   * Extract product cards from marketplace search results
+   * UPDATED: Structural selector-based approach (not text-based)
+   */
   async extractProductCards(maxProducts = 10) {
     if (!this.page) {
       throw new Error('Browser not initialized. Call init() first.');
@@ -392,99 +396,214 @@ class HotmartAutomation {
       // Wait for dynamic content to load
       await this.page.waitForTimeout(3000);
 
-      console.log('[HotmartAutomation] Extracting products using page content analysis...');
+      console.log('[HotmartAutomation] Looking for product cards using structural selectors...');
       
       // Use page.evaluate to extract data from the rendered page
       const products = await this.page.evaluate((maxCount) => {
         const results = [];
         
-        // Find all links on the page
-        const allLinks = Array.from(document.querySelectorAll('a'));
+        // STEP 1: Find product card containers using multiple selector strategies
+        console.log('[Extract] Step 1: Finding product card containers...');
         
-        // Filter for product links (they contain product info in their text)
-        const productLinks = allLinks.filter(link => {
-          const text = link.textContent || '';
-          // Product cards contain temperature (°), rating (★), and commission text
-          return text.includes('°') && 
-                 text.includes('Commission') &&
-                 text.trim().length > 50; // Substantial content
-        });
-
-        console.log(`Found ${productLinks.length} potential product cards`);
-
-        for (let i = 0; i < Math.min(productLinks.length, maxCount); i++) {
-          const link = productLinks[i];
-          const fullText = link.textContent || '';
-          const href = link.getAttribute('href') || '';
-
+        let productCards = [];
+        
+        // Strategy 1: Try common structural selectors
+        const selectors = [
+          'article',  // Semantic HTML
+          'div[class*="ProductCard" i]',  // Class name pattern
+          'div[class*="product-card" i]',
+          'a[href*="/market/product/"]',  // Links to product pages
+          'div[data-testid*="product" i]',  // Test IDs
+          'div[data-product-id]'  // Data attributes
+        ];
+        
+        for (const selector of selectors) {
+          productCards = Array.from(document.querySelectorAll(selector));
+          console.log(`[Extract] Tried selector "${selector}": found ${productCards.length} elements`);
+          if (productCards.length > 0) break;
+        }
+        
+        // Strategy 2: Fallback - find elements containing both image and "Commission" text
+        if (productCards.length === 0) {
+          console.log('[Extract] Fallback: Looking for elements with img + "Commission" text...');
+          const allDivs = Array.from(document.querySelectorAll('div, article, section'));
+          productCards = allDivs.filter(div => {
+            const hasImage = div.querySelector('img') !== null;
+            const hasCommission = div.textContent.includes('Commission');
+            return hasImage && hasCommission;
+          });
+          console.log(`[Extract] Fallback found ${productCards.length} potential cards`);
+        }
+        
+        console.log(`[Extract] Total product cards found: ${productCards.length}`);
+        
+        // STEP 2: Extract data from each card
+        for (let i = 0; i < Math.min(productCards.length, maxCount); i++) {
+          const card = productCards[i];
+          console.log(`[Extract] Processing card ${i + 1}/${Math.min(productCards.length, maxCount)}...`);
+          
           try {
-            // Extract product name (usually the longest text before "Commission")
-            const lines = fullText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            let productName = '';
+            const productData = {};
             
-            for (const line of lines) {
-              if (!line.includes('°') && 
-                  !line.includes('★') && 
-                  !line.includes('Commission') &&
-                  !line.includes('Max. price') &&
-                  !line.startsWith('$') &&
-                  !line.startsWith('€') &&
-                  !line.startsWith('R$') &&
-                  line.length > 3 &&
-                  line.length < 100) {
-                productName = line;
-                break;
+            // Extract Product Name
+            console.log('[Extract] Looking for product name...');
+            let nameElement = card.querySelector('h1, h2, h3, h4, h5, h6');
+            if (!nameElement) {
+              nameElement = card.querySelector('[class*="title" i], [class*="name" i]');
+            }
+            if (!nameElement) {
+              nameElement = card.querySelector('[data-testid*="title" i], [data-testid*="name" i]');
+            }
+            
+            if (nameElement) {
+              productData.name = nameElement.textContent.trim();
+              console.log(`[Extract] Found name: "${productData.name}"`);
+            } else {
+              // Fallback: Find largest text node that's not a label
+              const textNodes = Array.from(card.querySelectorAll('*'))
+                .map(el => el.textContent.trim())
+                .filter(text => 
+                  text.length > 3 && 
+                  text.length < 100 &&
+                  !text.includes('Commission') &&
+                  !text.includes('price') &&
+                  !text.includes('°') &&
+                  !text.includes('★')
+                )
+                .sort((a, b) => b.length - a.length);
+              
+              if (textNodes.length > 0) {
+                productData.name = textNodes[0];
+                console.log(`[Extract] Found name (fallback): "${productData.name}"`);
               }
             }
-
-            // Extract temperature (format: "21°" or "150°")
-            const tempMatch = fullText.match(/(\d+)°/);
-            const temperature = tempMatch ? parseInt(tempMatch[1]) : null;
-
-            // Extract rating (format: "3.8 (8)" or "0 (0)")
-            const ratingMatch = fullText.match(/([\d.]+)\s*[★]?\s*\((\d+)\)/);
-            const rating = ratingMatch ? parseFloat(ratingMatch[1]) : null;
-            const reviewCount = ratingMatch ? parseInt(ratingMatch[2]) : 0;
-
-            // Extract commission (format: "$2.23" or "€2.20")
-            const commissionMatch = fullText.match(/Commission[^$€R]*?([$€R$]+[\d,.]+)/);
-            const commission = commissionMatch ? commissionMatch[1] : null;
-
-            // Extract max price (format: "$9.99" or "€5.00")
-            const priceMatch = fullText.match(/Max\.\s*price[^$€R]*?([$€R$]+[\d,.]+)/);
-            const maxPrice = priceMatch ? priceMatch[1] : null;
-
-            // Extract image
-            const img = link.querySelector('img');
-            const imageUrl = img ? (img.getAttribute('src') || img.getAttribute('data-src')) : null;
-
-            // Only add if we got a product name
-            if (productName) {
-              results.push({
-                name: productName,
-                url: href.startsWith('http') ? href : `https://app.hotmart.com${href}`,
-                temperature: temperature,
-                rating: rating,
-                reviewCount: reviewCount,
-                commission: commission,
-                price: maxPrice,
-                imageUrl: imageUrl,
-                category: null // Will be extracted from product details page
-              });
+            
+            // Extract Image URL
+            console.log('[Extract] Looking for product image...');
+            const img = card.querySelector('img');
+            if (img) {
+              productData.imageUrl = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('srcset');
+              console.log(`[Extract] Found image: ${productData.imageUrl ? 'Yes' : 'No'}`);
             }
+            
+            // Extract Product URL
+            console.log('[Extract] Looking for product URL...');
+            let productLink = card;
+            if (card.tagName !== 'A') {
+              productLink = card.querySelector('a[href*="/product/"], a[href*="/market/"]');
+            }
+            if (productLink && productLink.href) {
+              productData.url = productLink.href;
+              console.log(`[Extract] Found URL: ${productData.url}`);
+            } else {
+              productData.url = window.location.href;  // Fallback to current page
+            }
+            
+            // Extract all text content for regex parsing
+            const cardText = card.textContent || '';
+            
+            // Extract Temperature
+            console.log('[Extract] Looking for temperature...');
+            const tempMatch = cardText.match(/(\d+)°/);
+            if (tempMatch) {
+              productData.temperature = parseInt(tempMatch[1]);
+              console.log(`[Extract] Found temperature: ${productData.temperature}°`);
+            }
+            
+            // Extract Rating and Review Count
+            console.log('[Extract] Looking for rating...');
+            const ratingMatch = cardText.match(/([\d.]+)\s*[★⭐]?\s*\((\d+)\)/);
+            if (ratingMatch) {
+              productData.rating = parseFloat(ratingMatch[1]);
+              productData.reviewCount = parseInt(ratingMatch[2]);
+              console.log(`[Extract] Found rating: ${productData.rating} (${productData.reviewCount} reviews)`);
+            } else {
+              productData.rating = null;
+              productData.reviewCount = 0;
+            }
+            
+            // Extract Commission
+            console.log('[Extract] Looking for commission...');
+            // Look for commission-specific elements first
+            let commissionElement = card.querySelector('[class*="commission" i]');
+            if (commissionElement) {
+              const commMatch = commissionElement.textContent.match(/([$€R$]+[\d,.]+)/);
+              if (commMatch) {
+                productData.commission = commMatch[1];
+              }
+            }
+            
+            // Fallback: regex on full text
+            if (!productData.commission) {
+              const commMatch = cardText.match(/Commission[^$€R]*?([$€R$]+[\d,.]+)/i);
+              if (commMatch) {
+                productData.commission = commMatch[1];
+              }
+            }
+            console.log(`[Extract] Found commission: ${productData.commission || 'N/A'}`);
+            
+            // Extract Max Price
+            console.log('[Extract] Looking for price...');
+            // Look for price-specific elements first
+            let priceElement = card.querySelector('[class*="price" i]');
+            if (priceElement) {
+              const priceMatch = priceElement.textContent.match(/([$€R$]+[\d,.]+)/);
+              if (priceMatch) {
+                productData.price = priceMatch[1];
+              }
+            }
+            
+            // Fallback: regex on full text
+            if (!productData.price) {
+              const priceMatch = cardText.match(/(?:Max\.|maximum)\s*price[^$€R]*?([$€R$]+[\d,.]+)/i);
+              if (priceMatch) {
+                productData.price = priceMatch[1];
+              }
+            }
+            console.log(`[Extract] Found price: ${productData.price || 'N/A'}`);
+            
+            // Only add if we have at least a name
+            if (productData.name) {
+              results.push({
+                name: productData.name,
+                url: productData.url || null,
+                temperature: productData.temperature || null,
+                rating: productData.rating || null,
+                reviewCount: productData.reviewCount || 0,
+                commission: productData.commission || null,
+                price: productData.price || null,
+                imageUrl: productData.imageUrl || null,
+                category: null  // Will be extracted from product details page
+              });
+              console.log(`[Extract] ✅ Successfully extracted product: "${productData.name}"`);
+            } else {
+              console.log(`[Extract] ⚠️  Skipped card ${i + 1}: No product name found`);
+            }
+            
           } catch (error) {
-            console.log(`Error extracting product ${i}:`, error.message);
+            console.log(`[Extract] ❌ Error extracting product ${i + 1}:`, error.message);
           }
         }
-
+        
+        console.log(`[Extract] Extraction complete: ${results.length} products extracted`);
         return results;
+        
       }, maxProducts);
 
-      console.log(`[HotmartAutomation] Extracted ${products.length} products`);
+      console.log(`[HotmartAutomation] ✅ Extracted ${products.length} products`);
       return products;
 
     } catch (error) {
-      console.error('[HotmartAutomation] Extraction error:', error.message);
+      console.error('[HotmartAutomation] ❌ Extraction error:', error.message);
+      
+      // Take screenshot for debugging
+      try {
+        await this.page.screenshot({ path: '/tmp/extraction_error.png', fullPage: true });
+        console.log('[HotmartAutomation] Screenshot saved to /tmp/extraction_error.png');
+      } catch (screenshotError) {
+        console.log('[HotmartAutomation] Could not save screenshot');
+      }
+      
       return [];
     }
   }
