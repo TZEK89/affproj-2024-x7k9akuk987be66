@@ -539,4 +539,92 @@ router.post('/screenshot', async (req, res) => {
 });
 
 
+/**
+ * POST /api/browser/hotmart/verify
+ * Enter verification code for email 2FA
+ */
+router.post('/hotmart/verify', async (req, res) => {
+  try {
+    const { sessionId, code } = req.body;
+    
+    if (!sessionId || !code) {
+      return res.status(400).json({
+        success: false,
+        error: 'sessionId and code are required'
+      });
+    }
+    
+    const session = activeSessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+    
+    console.log(`[BrowserController] Entering verification code for session ${sessionId}`);
+    
+    session.lastActivity = Date.now();
+    
+    // Find the code input field and enter the code
+    // Try different possible selectors for the verification code input
+    let codeEntered = false;
+    
+    // Try single input field (most common)
+    const singleInput = await session.browser.page.$('input[type="text"], input[type="number"], input[maxlength="6"]');
+    if (singleInput) {
+      await singleInput.fill(code);
+      codeEntered = true;
+      console.log('[BrowserController] Code entered in single input field');
+    } else {
+      // Try individual digit inputs (6 separate inputs)
+      const digitInputs = await session.browser.page.$$('input[maxlength="1"]');
+      if (digitInputs.length === 6) {
+        for (let i = 0; i < 6; i++) {
+          await digitInputs[i].fill(code[i]);
+        }
+        codeEntered = true;
+        console.log('[BrowserController] Code entered in 6 separate digit inputs');
+      }
+    }
+    
+    if (!codeEntered) {
+      return res.status(404).json({
+        success: false,
+        error: 'Could not find verification code input field'
+      });
+    }
+    
+    // Click the verify/login button
+    const verifyButton = await session.browser.page.$('button:has-text("Verification & Login"), button:has-text("Verify"), button:has-text("Continue"), button:has-text("Submit")');
+    if (verifyButton) {
+      await verifyButton.click();
+      console.log('[BrowserController] Clicked verification button');
+    } else {
+      console.log('[BrowserController] Warning: Could not find verification button, code entered but not submitted');
+    }
+    
+    // Wait for navigation/redirect
+    await session.browser.page.waitForTimeout(5000);
+    
+    const currentUrl = session.browser.page.url();
+    const isVerified = !currentUrl.includes('verification') && !currentUrl.includes('verify');
+    
+    res.json({
+      success: true,
+      message: 'Verification code entered',
+      verified: isVerified,
+      url: currentUrl
+    });
+    
+  } catch (error) {
+    console.error('[BrowserController] Error entering verification code:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+
 module.exports = router;
