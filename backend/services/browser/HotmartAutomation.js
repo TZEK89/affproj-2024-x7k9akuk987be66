@@ -1,375 +1,566 @@
 /**
- * Hotmart Marketplace Automation
- * Performs human-like research on Hotmart marketplace
+ * HotmartAutomation - Browser automation for Hotmart marketplace
+ * Phase 2: Core browser automation functionality
  */
 
-const BrowserService = require('./BrowserService');
+const { chromium } = require('playwright');
 
-class HotmartAutomation extends BrowserService {
-  constructor() {
-    super();
-    this.baseUrl = 'https://app.hotmart.com';
+class HotmartAutomation {
+  constructor(options = {}) {
+    this.options = {
+      headless: options.headless !== false, // Default to headless
+      slowMo: options.slowMo || 0,
+      timeout: options.timeout || 30000,
+      ...options
+    };
+    
+    this.browser = null;
+    this.context = null;
+    this.page = null;
     this.isLoggedIn = false;
   }
 
   /**
+   * Initialize the browser instance
+   */
+  async init() {
+    console.log('[HotmartAutomation] Initializing browser...');
+    
+    this.browser = await chromium.launch({
+      headless: this.options.headless,
+      slowMo: this.options.slowMo,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ]
+    });
+
+    // Create context with realistic browser settings
+    // NOTE: Do NOT pass geolocation: null - only include if actually defined
+    const contextOptions = {
+      viewport: { width: 1920, height: 1080 },
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      locale: 'en-US',
+      timezoneId: 'America/New_York',
+      permissions: ['geolocation'],
+    };
+
+    this.context = await this.browser.newContext(contextOptions);
+    this.page = await this.context.newPage();
+    
+    // Set default timeout
+    this.page.setDefaultTimeout(this.options.timeout);
+    
+    console.log('[HotmartAutomation] Browser initialized successfully');
+    return this;
+  }
+
+  /**
    * Login to Hotmart
-   * @param {string} email - User email
-   * @param {string} password - User password
-   * @returns {Promise<boolean>} - Success status
    */
   async login(email, password) {
-    try {
-      console.log('🔐 Attempting to login to Hotmart...');
-      
-      // Navigate to login page
-      await this.goto(`${this.baseUrl}/login`);
-      await this.wait(2000);
+    if (!this.page) {
+      throw new Error('Browser not initialized. Call init() first.');
+    }
 
-      // Check if already logged in
-      const isAlreadyLoggedIn = await this.exists('[data-testid="user-menu"]');
-      if (isAlreadyLoggedIn) {
-        console.log('✅ Already logged in');
-        this.isLoggedIn = true;
-        return true;
+    console.log('[HotmartAutomation] Logging in to Hotmart...');
+
+    try {
+      // Navigate to Hotmart login page
+      await this.page.goto('https://app.hotmart.com/login', {
+        waitUntil: 'networkidle',
+        timeout: this.options.timeout
+      });
+
+      // Wait for login form
+      await this.page.waitForSelector('input[type="email"], input[name="email"], #email', {
+        timeout: 10000
+      });
+
+      // Fill email
+      const emailInput = await this.page.$('input[type="email"], input[name="email"], #email');
+      if (emailInput) {
+        await emailInput.fill(email);
+      } else {
+        throw new Error('Email input not found');
       }
 
-      // Fill login form
-      await this.type('input[name="email"], input[type="email"]', email);
-      await this.wait(500);
-      await this.type('input[name="password"], input[type="password"]', password);
-      await this.wait(500);
+      // Fill password
+      const passwordInput = await this.page.$('input[type="password"], input[name="password"], #password');
+      if (passwordInput) {
+        await passwordInput.fill(password);
+      } else {
+        throw new Error('Password input not found');
+      }
 
       // Click login button
-      await this.click('button[type="submit"]');
-      await this.wait(5000);
-
-      // Verify login success
-      const loginSuccess = await this.exists('[data-testid="user-menu"]') || 
-                          await this.getUrl().includes('/dashboard') ||
-                          await this.getUrl().includes('/market');
-
-      if (loginSuccess) {
-        console.log('✅ Login successful');
-        this.isLoggedIn = true;
-        return true;
+      const loginButton = await this.page.$('button[type="submit"], button:has-text("Login"), button:has-text("Entrar"), button:has-text("Sign in")');
+      if (loginButton) {
+        await loginButton.click();
       } else {
-        console.log('❌ Login failed');
-        return false;
+        throw new Error('Login button not found');
       }
+
+      // Wait for navigation after login
+      await this.page.waitForNavigation({
+        waitUntil: 'networkidle',
+        timeout: 30000
+      }).catch(() => {
+        // Navigation might not trigger if already on dashboard
+      });
+
+      // Wait a bit for any redirects
+      await this.page.waitForTimeout(3000);
+
+      // Check if login was successful by looking for dashboard elements
+      const currentUrl = this.page.url();
+      if (currentUrl.includes('login') || currentUrl.includes('signin')) {
+        // Check for error messages
+        const errorMessage = await this.page.$('.error-message, .alert-error, [class*="error"]');
+        if (errorMessage) {
+          const errorText = await errorMessage.textContent();
+          throw new Error(`Login failed: ${errorText}`);
+        }
+        throw new Error('Login failed: Still on login page');
+      }
+
+      this.isLoggedIn = true;
+      console.log('[HotmartAutomation] Login successful');
+      
+      return {
+        success: true,
+        url: currentUrl
+      };
+
     } catch (error) {
-      console.error('❌ Login error:', error.message);
-      return false;
+      console.error('[HotmartAutomation] Login error:', error.message);
+      throw error;
     }
   }
 
   /**
-   * Navigate to marketplace
-   * @returns {Promise<void>}
+   * Navigate to the Hotmart marketplace
    */
-  async goToMarketplace() {
-    if (!this.isLoggedIn) {
-      throw new Error('Must be logged in to access marketplace');
+  async navigateToMarketplace() {
+    if (!this.page) {
+      throw new Error('Browser not initialized. Call init() first.');
     }
 
-    console.log('🏪 Navigating to marketplace...');
-    await this.goto(`${this.baseUrl}/market/hot-products`);
-    await this.wait(3000);
+    console.log('[HotmartAutomation] Navigating to marketplace...');
+
+    try {
+      // Direct navigation to marketplace
+      await this.page.goto('https://app.hotmart.com/market', {
+        waitUntil: 'networkidle',
+        timeout: this.options.timeout
+      });
+
+      // Wait for marketplace content to load
+      await this.page.waitForSelector('[class*="product"], [class*="card"], [data-testid*="product"]', {
+        timeout: 15000
+      }).catch(() => {
+        console.log('[HotmartAutomation] Product cards not immediately visible, continuing...');
+      });
+
+      console.log('[HotmartAutomation] At marketplace');
+      return {
+        success: true,
+        url: this.page.url()
+      };
+
+    } catch (error) {
+      console.error('[HotmartAutomation] Navigation error:', error.message);
+      throw error;
+    }
   }
 
   /**
-   * Search for products in marketplace
-   * @param {string} keywords - Search keywords
-   * @param {Object} filters - Search filters
-   * @returns {Promise<void>}
+   * Search for products in the marketplace
    */
   async searchMarketplace(keywords, filters = {}) {
-    console.log(`🔍 Searching for: "${keywords}"`);
-    
-    // Find and use search input
-    const searchInput = 'input[type="search"], input[placeholder*="Buscar"], input[placeholder*="Search"]';
-    
-    if (await this.exists(searchInput)) {
-      await this.type(searchInput, keywords);
-      await this.wait(1000);
+    if (!this.page) {
+      throw new Error('Browser not initialized. Call init() first.');
+    }
+
+    console.log(`[HotmartAutomation] Searching for: "${keywords}"`);
+
+    try {
+      // Look for search input
+      const searchInput = await this.page.$('input[type="search"], input[placeholder*="search"], input[placeholder*="Search"], input[placeholder*="buscar"], input[placeholder*="Buscar"], [class*="search"] input');
       
-      // Press Enter or click search button
-      await this.page.keyboard.press('Enter');
-      await this.wait(3000);
-    } else {
-      console.log('⚠️  Search input not found, using URL parameters');
-      await this.goto(`${this.baseUrl}/market/hot-products?search=${encodeURIComponent(keywords)}`);
-      await this.wait(3000);
-    }
+      if (searchInput) {
+        await searchInput.fill('');
+        await searchInput.fill(keywords);
+        await this.page.keyboard.press('Enter');
+      } else {
+        // Try URL-based search
+        const searchUrl = `https://app.hotmart.com/market?q=${encodeURIComponent(keywords)}`;
+        await this.page.goto(searchUrl, {
+          waitUntil: 'networkidle',
+          timeout: this.options.timeout
+        });
+      }
 
-    // Apply filters if provided
-    if (filters.language) {
-      await this.applyLanguageFilter(filters.language);
-    }
+      // Wait for results to load
+      await this.page.waitForTimeout(3000);
 
-    if (filters.category) {
-      await this.applyCategoryFilter(filters.category);
-    }
+      // Apply filters if provided
+      if (filters.language) {
+        await this.applyLanguageFilter(filters.language);
+      }
 
-    if (filters.sortBy) {
-      await this.applySorting(filters.sortBy);
-    }
+      if (filters.sortBy) {
+        await this.applySortFilter(filters.sortBy);
+      }
 
-    await this.wait(2000);
-    console.log('✅ Search completed');
+      console.log('[HotmartAutomation] Search completed');
+      return {
+        success: true,
+        keywords,
+        filters,
+        url: this.page.url()
+      };
+
+    } catch (error) {
+      console.error('[HotmartAutomation] Search error:', error.message);
+      throw error;
+    }
   }
 
   /**
    * Apply language filter
-   * @param {string} language - Language code (e.g., 'pt', 'en', 'es')
-   * @returns {Promise<void>}
    */
   async applyLanguageFilter(language) {
+    console.log(`[HotmartAutomation] Applying language filter: ${language}`);
+    
     try {
-      console.log(`🌐 Applying language filter: ${language}`);
-      
-      // Look for language filter dropdown
-      const languageFilter = 'select[name="language"], [data-filter="language"]';
-      if (await this.exists(languageFilter)) {
-        await this.page.selectOption(languageFilter, language);
-        await this.wait(2000);
+      // Look for language filter dropdown or checkbox
+      const languageFilter = await this.page.$(`[data-filter="language"], [class*="language-filter"], button:has-text("${language}")`);
+      if (languageFilter) {
+        await languageFilter.click();
+        await this.page.waitForTimeout(1000);
       }
     } catch (error) {
-      console.log('⚠️  Could not apply language filter:', error.message);
+      console.log('[HotmartAutomation] Language filter not found or not applicable');
     }
   }
 
   /**
-   * Apply category filter
-   * @param {string} category - Category name
-   * @returns {Promise<void>}
+   * Apply sort filter
    */
-  async applyCategoryFilter(category) {
+  async applySortFilter(sortBy) {
+    console.log(`[HotmartAutomation] Applying sort: ${sortBy}`);
+    
     try {
-      console.log(`📂 Applying category filter: ${category}`);
-      
-      const categoryFilter = 'select[name="category"], [data-filter="category"]';
-      if (await this.exists(categoryFilter)) {
-        await this.page.selectOption(categoryFilter, category);
-        await this.wait(2000);
+      // Look for sort dropdown
+      const sortDropdown = await this.page.$('[class*="sort"], [data-sort], select[class*="order"]');
+      if (sortDropdown) {
+        await sortDropdown.click();
+        await this.page.waitForTimeout(500);
+        
+        // Select sort option
+        const sortOption = await this.page.$(`[data-value="${sortBy}"], option[value="${sortBy}"], li:has-text("${sortBy}")`);
+        if (sortOption) {
+          await sortOption.click();
+          await this.page.waitForTimeout(1000);
+        }
       }
     } catch (error) {
-      console.log('⚠️  Could not apply category filter:', error.message);
+      console.log('[HotmartAutomation] Sort filter not found or not applicable');
     }
   }
 
   /**
-   * Apply sorting
-   * @param {string} sortBy - Sort option (e.g., 'best_sellers', 'highest_commission')
-   * @returns {Promise<void>}
-   */
-  async applySorting(sortBy) {
-    try {
-      console.log(`🔄 Applying sort: ${sortBy}`);
-      
-      const sortSelect = 'select[name="sort"], [data-filter="sort"]';
-      if (await this.exists(sortSelect)) {
-        await this.page.selectOption(sortSelect, sortBy);
-        await this.wait(2000);
-      }
-    } catch (error) {
-      console.log('⚠️  Could not apply sorting:', error.message);
-    }
-  }
-
-  /**
-   * Extract product cards from search results
-   * @param {number} maxProducts - Maximum number of products to extract
-   * @returns {Promise<Array>} - Array of product data
+   * Extract product cards from current page
    */
   async extractProductCards(maxProducts = 10) {
-    console.log(`📦 Extracting up to ${maxProducts} products...`);
-    
+    if (!this.page) {
+      throw new Error('Browser not initialized. Call init() first.');
+    }
+
+    console.log(`[HotmartAutomation] Extracting up to ${maxProducts} products...`);
+
+    try {
+      // Wait for products to be visible
+      await this.page.waitForSelector('[class*="product"], [class*="card"], [data-testid*="product"], article', {
+        timeout: 10000
+      }).catch(() => {
+        console.log('[HotmartAutomation] No standard product containers found, trying alternative selectors...');
+      });
+
+      // Try multiple selectors for product cards
+      const productSelectors = [
+        '[class*="ProductCard"]',
+        '[class*="product-card"]',
+        '[data-testid*="product"]',
+        'article[class*="card"]',
+        '[class*="marketplace"] [class*="card"]',
+        'div[class*="hot-product"]',
+        '.product-item',
+        '[class*="GridItem"]'
+      ];
+
+      let products = [];
+      
+      for (const selector of productSelectors) {
+        const elements = await this.page.$$(selector);
+        if (elements.length > 0) {
+          console.log(`[HotmartAutomation] Found ${elements.length} products with selector: ${selector}`);
+          
+          for (let i = 0; i < Math.min(elements.length, maxProducts); i++) {
+            try {
+              const product = await this.extractProductData(elements[i]);
+              if (product && product.name) {
+                products.push(product);
+              }
+            } catch (e) {
+              console.log(`[HotmartAutomation] Error extracting product ${i}:`, e.message);
+            }
+          }
+          
+          if (products.length > 0) break;
+        }
+      }
+
+      // If no products found with selectors, try generic approach
+      if (products.length === 0) {
+        console.log('[HotmartAutomation] Trying generic extraction...');
+        products = await this.extractProductsGeneric(maxProducts);
+      }
+
+      console.log(`[HotmartAutomation] Extracted ${products.length} products`);
+      return products;
+
+    } catch (error) {
+      console.error('[HotmartAutomation] Extraction error:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Extract data from a single product element
+   */
+  async extractProductData(element) {
+    const product = {
+      name: null,
+      price: null,
+      commission: null,
+      category: null,
+      rating: null,
+      url: null,
+      imageUrl: null
+    };
+
+    try {
+      // Extract name
+      const nameEl = await element.$('h2, h3, h4, [class*="title"], [class*="name"], [class*="Title"]');
+      if (nameEl) {
+        product.name = await nameEl.textContent();
+        product.name = product.name?.trim();
+      }
+
+      // Extract price
+      const priceEl = await element.$('[class*="price"], [class*="Price"], [class*="valor"]');
+      if (priceEl) {
+        product.price = await priceEl.textContent();
+        product.price = product.price?.trim();
+      }
+
+      // Extract commission
+      const commissionEl = await element.$('[class*="commission"], [class*="Commission"], [class*="comissao"]');
+      if (commissionEl) {
+        product.commission = await commissionEl.textContent();
+        product.commission = product.commission?.trim();
+      }
+
+      // Extract category
+      const categoryEl = await element.$('[class*="category"], [class*="Category"], [class*="categoria"]');
+      if (categoryEl) {
+        product.category = await categoryEl.textContent();
+        product.category = product.category?.trim();
+      }
+
+      // Extract rating
+      const ratingEl = await element.$('[class*="rating"], [class*="Rating"], [class*="star"]');
+      if (ratingEl) {
+        product.rating = await ratingEl.textContent();
+        product.rating = product.rating?.trim();
+      }
+
+      // Extract URL
+      const linkEl = await element.$('a[href*="product"], a[href*="hotmart"]');
+      if (linkEl) {
+        product.url = await linkEl.getAttribute('href');
+      }
+
+      // Extract image
+      const imgEl = await element.$('img');
+      if (imgEl) {
+        product.imageUrl = await imgEl.getAttribute('src');
+      }
+
+    } catch (error) {
+      console.log('[HotmartAutomation] Error extracting product data:', error.message);
+    }
+
+    return product;
+  }
+
+  /**
+   * Generic product extraction fallback
+   */
+  async extractProductsGeneric(maxProducts) {
     const products = [];
     
     try {
-      // Wait for products to load
-      await this.wait(3000);
+      // Get all links that might be product links
+      const links = await this.page.$$('a[href*="product"], a[href*="/market/"]');
       
-      // Scroll to load more products
-      await this.scrollToBottom();
-      await this.wait(2000);
-
-      // Extract product data using page.evaluate
-      const extractedProducts = await this.evaluate((max) => {
-        const productCards = Array.from(document.querySelectorAll('[data-product-card], .product-card, [class*="ProductCard"]'));
+      for (let i = 0; i < Math.min(links.length, maxProducts); i++) {
+        const link = links[i];
+        const href = await link.getAttribute('href');
+        const text = await link.textContent();
         
-        return productCards.slice(0, max).map(card => {
-          // Extract product name
-          const nameEl = card.querySelector('h2, h3, [class*="title"], [class*="name"]');
-          const name = nameEl ? nameEl.textContent.trim() : null;
-
-          // Extract price
-          const priceEl = card.querySelector('[class*="price"], [data-price]');
-          const priceText = priceEl ? priceEl.textContent.trim() : null;
-          const price = priceText ? parseFloat(priceText.replace(/[^0-9.,]/g, '').replace(',', '.')) : null;
-
-          // Extract commission
-          const commissionEl = card.querySelector('[class*="commission"], [data-commission]');
-          const commissionText = commissionEl ? commissionEl.textContent.trim() : null;
-          const commission = commissionText ? parseFloat(commissionText.replace(/[^0-9.,]/g, '').replace(',', '.')) : null;
-
-          // Extract product URL
-          const linkEl = card.querySelector('a[href*="product"], a[href*="produto"]');
-          const productUrl = linkEl ? linkEl.href : null;
-
-          // Extract image
-          const imgEl = card.querySelector('img');
-          const imageUrl = imgEl ? (imgEl.src || imgEl.dataset.src) : null;
-
-          // Extract category
-          const categoryEl = card.querySelector('[class*="category"], [data-category]');
-          const category = categoryEl ? categoryEl.textContent.trim() : null;
-
-          // Extract rating if available
-          const ratingEl = card.querySelector('[class*="rating"], [data-rating]');
-          const rating = ratingEl ? parseFloat(ratingEl.textContent.trim()) : null;
-
-          return {
-            name,
-            price,
-            commission,
-            productUrl,
-            imageUrl,
-            category,
-            rating,
-            platform: 'hotmart'
-          };
-        }).filter(p => p.name); // Only return products with a name
-      }, maxProducts);
-
-      products.push(...extractedProducts);
-      
-      console.log(`✅ Extracted ${products.length} products`);
-      return products;
+        if (text && text.trim().length > 5) {
+          products.push({
+            name: text.trim().substring(0, 100),
+            url: href,
+            price: null,
+            commission: null,
+            category: null,
+            rating: null,
+            imageUrl: null
+          });
+        }
+      }
     } catch (error) {
-      console.error('❌ Error extracting products:', error.message);
-      return products;
+      console.log('[HotmartAutomation] Generic extraction error:', error.message);
     }
+
+    return products;
   }
 
   /**
-   * Get detailed product information
-   * @param {string} productUrl - Product page URL
-   * @returns {Promise<Object>} - Detailed product data
+   * Get detailed information about a specific product
    */
   async getProductDetails(productUrl) {
-    console.log(`📄 Getting product details from: ${productUrl}`);
-    
+    if (!this.page) {
+      throw new Error('Browser not initialized. Call init() first.');
+    }
+
+    console.log(`[HotmartAutomation] Getting details for: ${productUrl}`);
+
     try {
-      await this.goto(productUrl);
-      await this.wait(3000);
-
-      const details = await this.evaluate(() => {
-        // Extract comprehensive product details
-        const data = {
-          name: null,
-          description: null,
-          price: null,
-          commission: null,
-          commissionType: null,
-          category: null,
-          language: null,
-          salesPage: null,
-          producer: null,
-          rating: null,
-          totalSales: null,
-          guaranteeDays: null
-        };
-
-        // Product name
-        const nameEl = document.querySelector('h1, [class*="ProductName"], [data-product-name]');
-        if (nameEl) data.name = nameEl.textContent.trim();
-
-        // Description
-        const descEl = document.querySelector('[class*="description"], [data-description]');
-        if (descEl) data.description = descEl.textContent.trim();
-
-        // Price
-        const priceEl = document.querySelector('[class*="price"], [data-price]');
-        if (priceEl) {
-          const priceText = priceEl.textContent.trim();
-          data.price = parseFloat(priceText.replace(/[^0-9.,]/g, '').replace(',', '.'));
-        }
-
-        // Commission
-        const commEl = document.querySelector('[class*="commission"], [data-commission]');
-        if (commEl) {
-          const commText = commEl.textContent.trim();
-          data.commission = parseFloat(commText.replace(/[^0-9.,]/g, '').replace(',', '.'));
-        }
-
-        // Sales page link
-        const salesPageEl = document.querySelector('a[href*="checkout"], a[class*="sales-page"]');
-        if (salesPageEl) data.salesPage = salesPageEl.href;
-
-        // Producer name
-        const producerEl = document.querySelector('[class*="producer"], [data-producer]');
-        if (producerEl) data.producer = producerEl.textContent.trim();
-
-        return data;
+      await this.page.goto(productUrl, {
+        waitUntil: 'networkidle',
+        timeout: this.options.timeout
       });
 
-      console.log(`✅ Product details extracted: ${details.name}`);
-      return details;
-    } catch (error) {
-      console.error('❌ Error getting product details:', error.message);
-      return null;
-    }
-  }
+      // Wait for content to load
+      await this.page.waitForTimeout(2000);
 
-  /**
-   * Research a niche and return top products
-   * @param {string} niche - Niche keywords
-   * @param {Object} options - Research options
-   * @returns {Promise<Array>} - Array of researched products
-   */
-  async researchNiche(niche, options = {}) {
-    const {
-      maxProducts = 10,
-      language = null,
-      sortBy = 'best_sellers',
-      getDetails = false
-    } = options;
+      const details = {
+        name: null,
+        description: null,
+        price: null,
+        commission: null,
+        commissionPercent: null,
+        salesPage: null,
+        vendor: null,
+        category: null,
+        rating: null,
+        totalSales: null,
+        affiliateLink: null,
+        url: productUrl
+      };
 
-    console.log(`🎯 Starting niche research: "${niche}"`);
-    
-    try {
-      // Navigate to marketplace
-      await this.goToMarketplace();
+      // Extract name
+      const nameEl = await this.page.$('h1, [class*="product-title"], [class*="ProductTitle"]');
+      if (nameEl) {
+        details.name = (await nameEl.textContent())?.trim();
+      }
 
-      // Search for niche
-      await this.searchMarketplace(niche, { language, sortBy });
+      // Extract description
+      const descEl = await this.page.$('[class*="description"], [class*="Description"], [class*="about"]');
+      if (descEl) {
+        details.description = (await descEl.textContent())?.trim().substring(0, 500);
+      }
 
-      // Extract product cards
-      const products = await this.extractProductCards(maxProducts);
+      // Extract price
+      const priceEl = await this.page.$('[class*="price"], [class*="Price"]');
+      if (priceEl) {
+        details.price = (await priceEl.textContent())?.trim();
+      }
 
-      // Get detailed info if requested
-      if (getDetails && products.length > 0) {
-        console.log('📊 Fetching detailed product information...');
-        
-        for (let i = 0; i < Math.min(products.length, 3); i++) {
-          if (products[i].productUrl) {
-            const details = await this.getProductDetails(products[i].productUrl);
-            if (details) {
-              products[i] = { ...products[i], ...details };
-            }
-            await this.wait(2000); // Be respectful with requests
-          }
+      // Extract commission info
+      const commissionEl = await this.page.$('[class*="commission"], [class*="Commission"]');
+      if (commissionEl) {
+        const commText = (await commissionEl.textContent())?.trim();
+        details.commission = commText;
+        // Try to extract percentage
+        const percentMatch = commText?.match(/(\d+(?:\.\d+)?)\s*%/);
+        if (percentMatch) {
+          details.commissionPercent = parseFloat(percentMatch[1]);
         }
       }
 
-      console.log(`✅ Niche research completed: ${products.length} products found`);
-      return products;
+      // Extract vendor/producer
+      const vendorEl = await this.page.$('[class*="vendor"], [class*="Vendor"], [class*="producer"], [class*="Producer"]');
+      if (vendorEl) {
+        details.vendor = (await vendorEl.textContent())?.trim();
+      }
+
+      console.log('[HotmartAutomation] Product details extracted');
+      return details;
+
     } catch (error) {
-      console.error('❌ Niche research error:', error.message);
+      console.error('[HotmartAutomation] Error getting product details:', error.message);
       throw error;
     }
+  }
+
+  /**
+   * Take a screenshot
+   */
+  async takeScreenshot(fullPage = false) {
+    if (!this.page) {
+      throw new Error('Browser not initialized. Call init() first.');
+    }
+
+    console.log('[HotmartAutomation] Taking screenshot...');
+    
+    const screenshot = await this.page.screenshot({
+      fullPage,
+      type: 'png'
+    });
+
+    return screenshot;
+  }
+
+  /**
+   * Close the browser
+   */
+  async close() {
+    console.log('[HotmartAutomation] Closing browser...');
+    
+    if (this.page) {
+      await this.page.close().catch(() => {});
+    }
+    if (this.context) {
+      await this.context.close().catch(() => {});
+    }
+    if (this.browser) {
+      await this.browser.close().catch(() => {});
+    }
+    
+    this.page = null;
+    this.context = null;
+    this.browser = null;
+    this.isLoggedIn = false;
+    
+    console.log('[HotmartAutomation] Browser closed');
   }
 }
 
