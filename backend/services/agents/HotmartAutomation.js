@@ -398,6 +398,35 @@ class HotmartAutomation {
 
       console.log('[HotmartAutomation] Looking for product cards using structural selectors...');
       
+      // DEBUG: Check page state before extraction
+      const currentUrl = this.page.url();
+      console.log(`[DEBUG] Current URL: ${currentUrl}`);
+      
+      // Count elements on the page
+      const allDivs = await this.page.$$('div');
+      const allArticles = await this.page.$$('article');
+      const allLinks = await this.page.$$('a');
+      const allImages = await this.page.$$('img');
+      console.log(`[DEBUG] Total divs on page: ${allDivs.length}`);
+      console.log(`[DEBUG] Total articles on page: ${allArticles.length}`);
+      console.log(`[DEBUG] Total links on page: ${allLinks.length}`);
+      console.log(`[DEBUG] Total images on page: ${allImages.length}`);
+      
+      // Check if page contains expected text
+      const pageText = await this.page.textContent('body');
+      console.log(`[DEBUG] Page contains "product": ${pageText.toLowerCase().includes('product')}`);
+      console.log(`[DEBUG] Page contains "commission": ${pageText.toLowerCase().includes('commission')}`);
+      console.log(`[DEBUG] Page contains "°": ${pageText.includes('°')}`);
+      console.log(`[DEBUG] Page text length: ${pageText.length} characters`);
+      
+      // Take a screenshot for debugging
+      try {
+        await this.page.screenshot({ path: '/tmp/extraction_debug.png', fullPage: false });
+        console.log('[DEBUG] Screenshot saved to /tmp/extraction_debug.png');
+      } catch (e) {
+        console.log('[DEBUG] Could not save screenshot');
+      }
+      
       // Use page.evaluate to extract data from the rendered page
       const products = await this.page.evaluate((maxCount) => {
         const results = [];
