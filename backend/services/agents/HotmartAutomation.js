@@ -74,29 +74,29 @@ class HotmartAutomation {
         timeout: this.options.timeout
       });
 
-      // Wait for login form
-      await this.page.waitForSelector('input[type="email"], input[name="email"], #email', {
+      // Wait for login form (actual Hotmart selector)
+      await this.page.waitForSelector('#username', {
         timeout: 10000
       });
 
-      // Fill email
-      const emailInput = await this.page.$('input[type="email"], input[name="email"], #email');
+      // Fill email (actual Hotmart selector: #username)
+      const emailInput = await this.page.$('#username');
       if (emailInput) {
         await emailInput.fill(email);
       } else {
         throw new Error('Email input not found');
       }
 
-      // Fill password
-      const passwordInput = await this.page.$('input[type="password"], input[name="password"], #password');
+      // Fill password (actual Hotmart selector: #password)
+      const passwordInput = await this.page.$('#password');
       if (passwordInput) {
         await passwordInput.fill(password);
       } else {
         throw new Error('Password input not found');
       }
 
-      // Click login button
-      const loginButton = await this.page.$('button[type="submit"], button:has-text("Login"), button:has-text("Entrar"), button:has-text("Sign in")');
+      // Click login button (actual Hotmart selector: form#fm1 button containing "Log in")
+      const loginButton = await this.page.$('form#fm1 button:has-text("Log in")');
       if (loginButton) {
         await loginButton.click();
       } else {
@@ -114,9 +114,27 @@ class HotmartAutomation {
       // Wait a bit for any redirects
       await this.page.waitForTimeout(3000);
 
-      // Check if login was successful by looking for dashboard elements
+      // Check for 2FA verification page
       const currentUrl = this.page.url();
-      if (currentUrl.includes('login') || currentUrl.includes('signin')) {
+      if (currentUrl.includes('verify') || currentUrl.includes('2fa') || currentUrl.includes('mfa')) {
+        console.log('[HotmartAutomation] 2FA verification detected');
+        console.log('[HotmartAutomation] ⚠️  Please complete 2FA verification manually in the browser');
+        console.log('[HotmartAutomation] Waiting for 2FA completion (60 seconds)...');
+        
+        // Wait for user to complete 2FA
+        await this.page.waitForNavigation({
+          waitUntil: 'networkidle',
+          timeout: 60000
+        }).catch(() => {
+          throw new Error('2FA verification timeout - please complete 2FA within 60 seconds');
+        });
+        
+        console.log('[HotmartAutomation] 2FA completed, continuing...');
+      }
+
+      // Check if login was successful by looking for dashboard elements
+      const finalUrl = this.page.url();
+      if (finalUrl.includes('login') || finalUrl.includes('signin')) {
         // Check for error messages
         const errorMessage = await this.page.$('.error-message, .alert-error, [class*="error"]');
         if (errorMessage) {
@@ -131,7 +149,7 @@ class HotmartAutomation {
       
       return {
         success: true,
-        url: currentUrl
+        url: finalUrl
       };
 
     } catch (error) {
