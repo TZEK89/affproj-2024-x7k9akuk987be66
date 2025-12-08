@@ -280,8 +280,16 @@ class HotmartLoginService {
           'input[placeholder*="email"]'
         ],
         value: 'HOTMART_EMAIL',
-        waitAfter: 1000,
+        waitAfter: 3000,
         description: 'Fill email field'
+      },
+      
+      // Step 4.5: Wait for any auto-navigation after email
+      {
+        action: 'wait',
+        condition: 'timeout',
+        duration: 2000,
+        description: 'Wait for potential navigation after email fill'
       },
       
       // Step 5: Fill password
