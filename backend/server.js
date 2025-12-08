@@ -78,6 +78,7 @@ const agentsRoutes = require('./routes/agents');
 const agentsExecuteRoutes = require('./routes/agents-execute');
 const browserController = require('./routes/browserController');
 const agenticRoutes = require('./routes/agenticRoutes');
+const brightdataRoutes = require('./routes/brightdata');
 
 // Import job system for agent missions
 let jobSystem = null;
@@ -149,6 +150,7 @@ app.use('/api/agents', agentsRoutes);
 app.use('/api/agents', agentsExecuteRoutes);
 app.use('/api/browser', authMiddleware, browserController);
 app.use('/api/agents', authMiddleware, agenticRoutes);
+app.use('/api/brightdata', brightdataRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -169,7 +171,8 @@ app.get('/', (req, res) => {
       hotmart: '/api/hotmart',
       product_images: '/api/products/:id/images',
       ai: '/api/ai',
-      agents: '/api/agents'
+      agents: '/api/agents',
+      brightdata: '/api/brightdata'
     }
   });
 });
@@ -196,8 +199,29 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Initialize Bright Data service
+const BrightDataService = require('./services/BrightDataService');
+const brightDataService = new BrightDataService();
+
 // Initialize job system and start server
 const startServer = async () => {
+  // Initialize Bright Data service
+  try {
+    console.log('🌐 Initializing Bright Data service...');
+    const brightDataInit = await brightDataService.initialize();
+    if (brightDataInit.success) {
+      console.log('✅ Bright Data service initialized successfully');
+      // Make service available globally
+      global.BrightDataService = brightDataService;
+    } else {
+      console.warn('⚠️ Bright Data service initialization failed:', brightDataInit.error);
+      console.log('⚠️ Server will continue without Bright Data scraping');
+    }
+  } catch (error) {
+    console.error('❌ Failed to initialize Bright Data:', error.message);
+    console.log('⚠️ Server will continue without Bright Data scraping');
+  }
+
   // Initialize job system if available
   if (jobSystem) {
     try {

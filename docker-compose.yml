@@ -1,26 +1,118 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: affiliate-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-affiliate_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-affiliate_password_2024}
+      POSTGRES_DB: ${DB_NAME:-affiliate_marketing}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - affiliate-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-affiliate_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Redis for caching and sessions
   redis:
     image: redis:7-alpine
     container_name: affiliate-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
+      - redis_data:/data
     command: redis-server --appendonly yes
-    restart: unless-stopped
+    networks:
+      - affiliate-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 3
 
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: affiliate-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-affiliate_user}
+      DB_PASSWORD: ${DB_PASSWORD:-affiliate_password_2024}
+      DB_NAME: ${DB_NAME:-affiliate_marketing}
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      MANUS_API_KEY: ${MANUS_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      STABILITY_API_KEY: ${STABILITY_API_KEY:-}
+      HOTMART_CLIENT_ID: ${HOTMART_CLIENT_ID:-}
+      HOTMART_CLIENT_SECRET: ${HOTMART_CLIENT_SECRET:-}
+      HOTMART_BASIC_AUTH: ${HOTMART_BASIC_AUTH:-}
+      IMPACT_ACCOUNT_SID: ${IMPACT_ACCOUNT_SID:-}
+      IMPACT_AUTH_TOKEN: ${IMPACT_AUTH_TOKEN:-}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    networks:
+      - affiliate-network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend Next.js
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
+    container_name: affiliate-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    networks:
+      - affiliate-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+
   # n8n for workflow automation
   n8n:
     image: n8nio/n8n:latest
     container_name: affiliate-n8n
+    restart: unless-stopped
     ports:
       - "5678:5678"
     environment:
@@ -34,45 +126,39 @@ services:
       - WEBHOOK_URL=http://localhost:5678/
       - GENERIC_TIMEZONE=America/New_York
     volumes:
-      - n8n-data:/home/node/.n8n
+      - n8n_data:/home/node/.n8n
       - ./automation/n8n/workflows:/home/node/.n8n/workflows
-    restart: unless-stopped
+    networks:
+      - affiliate-network
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:5678/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # PostgreSQL (Optional - only if not using Supabase)
-  # Uncomment if you want to run PostgreSQL locally instead of Supabase
-  # postgres:
-  #   image: postgres:15-alpine
-  #   container_name: affiliate-postgres
-  #   ports:
-  #     - "5432:5432"
-  #   environment:
-  #     - POSTGRES_USER=affiliate_user
-  #     - POSTGRES_PASSWORD=affiliate_password
-  #     - POSTGRES_DB=affiliate_db
-  #   volumes:
-  #     - postgres-data:/var/lib/postgresql/data
-  #     - ./database/migrations:/docker-entrypoint-initdb.d
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U affiliate_user"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-
-volumes:
-  redis-data:
-    driver: local
-  n8n-data:
-    driver: local
-  # postgres-data:
-  #   driver: local
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: affiliate-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - affiliate-network
 
 networks:
-  default:
-    name: affiliate-network
+  affiliate-network:
+    driver: bridge
 
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  n8n_data:
+    driver: local
