@@ -616,6 +616,225 @@ class BrightDataService {
   }
 
   /**
+   * Login to Hotmart account
+   * @param {string} email - Hotmart email
+   * @param {string} password - Hotmart password
+   * @param {string} twoFactorCode - Optional 2FA code
+   */
+  async loginToHotmart(email, password, twoFactorCode = null) {
+    return this.executeBrowserTask(async (page, browser) => {
+      console.log(`[BrightData] Logging into Hotmart as: ${email}`);
+      
+      // Navigate to login page
+      await page.goto('https://app.hotmart.com/login', {
+        waitUntil: 'domcontentloaded',
+        timeout: 60000
+      });
+      
+      await page.waitForTimeout(3000);
+      
+      // Fill in email
+      console.log('[BrightData] Filling email...');
+      await page.fill('input[type="email"], input[name="email"], input[id*="email"]', email);
+      await page.waitForTimeout(1000);
+      
+      // Fill in password
+      console.log('[BrightData] Filling password...');
+      await page.fill('input[type="password"], input[name="password"], input[id*="password"]', password);
+      await page.waitForTimeout(1000);
+      
+      // Click login button
+      console.log('[BrightData] Clicking login button...');
+      await page.click('button[type="submit"], button:has-text("Login"), button:has-text("Entrar")');
+      
+      // Wait for navigation or 2FA
+      await page.waitForTimeout(5000);
+      
+      // Check if 2FA is required
+      const needs2FA = await page.evaluate(() => {
+        const text = document.body.textContent.toLowerCase();
+        return text.includes('código') || 
+               text.includes('verification') || 
+               text.includes('two-factor') ||
+               text.includes('2fa') ||
+               document.querySelector('input[name*="code"], input[id*="code"]') !== null;
+      });
+      
+      if (needs2FA) {
+        console.log('[BrightData] 2FA required');
+        
+        if (twoFactorCode) {
+          console.log('[BrightData] Entering 2FA code...');
+          await page.fill('input[name*="code"], input[id*="code"], input[type="text"]', twoFactorCode);
+          await page.waitForTimeout(1000);
+          await page.click('button[type="submit"]');
+          await page.waitForTimeout(5000);
+        } else {
+          return {
+            success: false,
+            needs2FA: true,
+            message: '2FA code required. Please provide the code and try again.',
+            screenshot: await page.screenshot()
+          };
+        }
+      }
+      
+      // Check if login was successful
+      const currentUrl = page.url();
+      const isLoggedIn = !currentUrl.includes('/login') && 
+                        (currentUrl.includes('/market') || 
+                         currentUrl.includes('/dashboard') ||
+                         currentUrl.includes('/home'));
+      
+      if (isLoggedIn) {
+        console.log('[BrightData] ✅ Login successful!');
+        
+        // Get cookies for future requests
+        const cookies = await page.context().cookies();
+        
+        return {
+          success: true,
+          message: 'Login successful',
+          url: currentUrl,
+          cookies: cookies,
+          screenshot: await page.screenshot()
+        };
+      } else {
+        console.log('[BrightData] ❌ Login failed');
+        
+        return {
+          success: false,
+          message: 'Login failed. Please check credentials.',
+          url: currentUrl,
+          screenshot: await page.screenshot()
+        };
+      }
+    });
+  }
+
+  /**
+   * Scrape Hotmart marketplace with authentication
+   * @param {string} searchQuery - Search term
+   * @param {array} cookies - Cookies from login
+   */
+  async scrapeHotmartAuthenticated(searchQuery, cookies, options = {}) {
+    return this.executeBrowserTask(async (page, browser) => {
+      // Set cookies first
+      if (cookies && cookies.length > 0) {
+        await page.context().addCookies(cookies);
+        console.log('[BrightData] Cookies added');
+      }
+      
+      const url = `https://app.hotmart.com/market/search?q=${encodeURIComponent(searchQuery)}&locale=en`;
+      
+      console.log(`[BrightData] Navigating to authenticated marketplace: ${searchQuery}`);
+      
+      await page.goto(url, {
+        waitUntil: 'domcontentloaded',
+        timeout: 90000
+      });
+      
+      await page.waitForTimeout(5000);
+      await this._autoScroll(page, 5);
+      await page.waitForTimeout(2000);
+      
+      // Same extraction logic as scrapeHotmartMarketplace
+      const products = await page.evaluate(() => {
+        const items = [];
+        const selectorStrategies = [
+          '[class*="ProductCard"]',
+          '[class*="product-card"]',
+          '[class*="productCard"]',
+          '[data-testid*="product"]',
+          '[class*="Card"][class*="product"]',
+          'article[class*="product"]',
+          'div[class*="offer"]',
+          'a[href*="/market/"][class*="card"]'
+        ];
+        
+        let cards = [];
+        for (const selector of selectorStrategies) {
+          const found = document.querySelectorAll(selector);
+          if (found.length > 0) {
+            cards = found;
+            break;
+          }
+        }
+        
+        if (cards.length === 0) {
+          const marketLinks = document.querySelectorAll('a[href*="/market/"]');
+          const containers = new Set();
+          marketLinks.forEach(link => {
+            const parent = link.closest('div[class], article, section');
+            if (parent) containers.add(parent);
+          });
+          cards = Array.from(containers);
+        }
+        
+        cards.forEach((card, index) => {
+          try {
+            const getText = (selectors) => {
+              for (const sel of selectors) {
+                const el = card.querySelector(sel);
+                if (el?.textContent?.trim()) return el.textContent.trim();
+              }
+              return null;
+            };
+            
+            const getLink = () => {
+              const link = card.querySelector('a[href*="/market/"]') || 
+                          card.querySelector('a[href*="hotmart"]') ||
+                          (card.tagName === 'A' ? card : null);
+              return link?.href || null;
+            };
+            
+            const getImage = () => {
+              const img = card.querySelector('img');
+              return img?.src || img?.dataset?.src || null;
+            };
+            
+            const product = {
+              index: index,
+              name: getText(['[class*="name"]', '[class*="Name"]', '[class*="title"]', '[class*="Title"]', 'h1', 'h2', 'h3', 'h4', '[class*="product"] span', 'a[href*="/market/"]']),
+              price: getText(['[class*="price"]', '[class*="Price"]', '[class*="value"]', '[class*="Value"]', '[class*="amount"]']),
+              commission: getText(['[class*="commission"]', '[class*="Commission"]', '[class*="percent"]', '[class*="Percent"]']),
+              temperature: getText(['[class*="temperature"]', '[class*="Temperature"]', '[class*="hot"]', '[class*="Hot"]', '[class*="°"]']),
+              rating: getText(['[class*="rating"]', '[class*="Rating"]', '[class*="star"]', '[class*="Star"]', '[class*="score"]']),
+              url: getLink(),
+              image: getImage(),
+              rawText: card.textContent?.substring(0, 300)?.trim()
+            };
+            
+            if (product.name || product.url || product.price) {
+              items.push(product);
+            }
+          } catch (err) {
+            console.error('Error extracting product:', err);
+          }
+        });
+        
+        return items;
+      });
+      
+      const pageInfo = await page.evaluate(() => ({
+        title: document.title,
+        url: window.location.href,
+        totalCards: document.querySelectorAll('[class*="card"], [class*="Card"], article').length
+      }));
+      
+      return {
+        products: products,
+        totalFound: products.length,
+        searchQuery: searchQuery,
+        pageInfo: pageInfo,
+        authenticated: true,
+        timestamp: new Date().toISOString(),
+        screenshot: options.screenshot ? await page.screenshot() : null
+      };
+    });
+  }
+
+  /**
    * Scrape a specific Hotmart product page
    */
   async scrapeHotmartProduct(productUrl, options = {}) {

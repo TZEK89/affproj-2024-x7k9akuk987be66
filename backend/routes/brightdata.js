@@ -191,6 +191,70 @@ router.post('/hotmart/search', async (req, res) => {
 });
 
 /**
+ * POST /api/brightdata/hotmart/login
+ * Login to Hotmart account
+ */
+router.post('/hotmart/login', async (req, res) => {
+  try {
+    const { email, password, twoFactorCode } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Email and password are required' 
+      });
+    }
+    
+    console.log(`[API] Hotmart login request for: ${email}`);
+    
+    const service = getBrightDataService();
+    const result = await service.loginToHotmart(email, password, twoFactorCode);
+    
+    console.log(`[API] Hotmart login ${result.success ? 'successful' : 'failed'}`);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('[API] Hotmart login error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
+/**
+ * POST /api/brightdata/hotmart/search/authenticated
+ * Search Hotmart marketplace with authentication
+ */
+router.post('/hotmart/search/authenticated', async (req, res) => {
+  try {
+    const { query, cookies, screenshot = false } = req.body;
+    
+    if (!query) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Search query is required' 
+      });
+    }
+    
+    console.log(`[API] Authenticated Hotmart search request for: "${query}"`);
+    
+    const service = getBrightDataService();
+    const result = await service.scrapeHotmartAuthenticated(query, cookies, { screenshot });
+    
+    console.log(`[API] Authenticated Hotmart search completed. Found ${result.data?.totalFound || 0} products`);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('[API] Authenticated Hotmart search error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+});
+
+/**
  * POST /api/brightdata/hotmart/product
  * Get details of a specific Hotmart product
  */
