@@ -79,6 +79,7 @@ const agentsExecuteRoutes = require('./routes/agents-execute');
 const browserController = require('./routes/browserController');
 const agenticRoutes = require('./routes/agenticRoutes');
 const brightdataRoutes = require('./routes/brightdata');
+const hotmartBrowserRoutes = require('./routes/hotmart-browser');
 
 // Import job system for agent missions
 let jobSystem = null;
@@ -151,6 +152,7 @@ app.use('/api/agents', agentsExecuteRoutes);
 app.use('/api/browser', authMiddleware, browserController);
 app.use('/api/agents', authMiddleware, agenticRoutes);
 app.use('/api/brightdata', brightdataRoutes);
+app.use('/api/hotmart-browser', hotmartBrowserRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -172,7 +174,8 @@ app.get('/', (req, res) => {
       product_images: '/api/products/:id/images',
       ai: '/api/ai',
       agents: '/api/agents',
-      brightdata: '/api/brightdata'
+      brightdata: '/api/brightdata',
+      hotmart_browser: '/api/hotmart-browser'
     }
   });
 });
@@ -202,6 +205,12 @@ app.use((err, req, res, next) => {
 // Initialize Bright Data service
 const BrightDataService = require('./services/BrightDataService');
 const brightDataService = new BrightDataService();
+
+// Initialize Hotmart Login service
+const HotmartLoginService = require('./services/HotmartLoginService');
+const hotmartLoginService = new HotmartLoginService(brightDataService);
+const { setHotmartLoginService } = require('./routes/hotmart-browser');
+setHotmartLoginService(hotmartLoginService);
 
 // Initialize job system and start server
 const startServer = async () => {
