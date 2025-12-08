@@ -688,6 +688,6 @@ class BrightDataService {
     };
     console.log('[BrightData] Statistics reset');
   }
-
+}
 
 module.exports = BrightDataService;
