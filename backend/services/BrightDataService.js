@@ -626,12 +626,17 @@ class BrightDataService {
       console.log(`[BrightData] Logging into Hotmart as: ${email}`);
       
       // Navigate to login page
-      await page.goto('https://app.hotmart.com/login', {
-        waitUntil: 'domcontentloaded',
-        timeout: 60000
-      });
+      try {
+        await page.goto('https://app.hotmart.com/login', {
+          waitUntil: 'load',
+          timeout: 60000
+        });
+      } catch (e) {
+        console.log('[BrightData] Navigation warning:', e.message);
+        // Continue anyway, page might have loaded
+      }
       
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(5000);
       
       // Fill in email
       console.log('[BrightData] Filling email...');
