@@ -234,12 +234,12 @@ class HotmartLoginService {
     console.log('[HotmartLogin] Starting login sequence...');
     
     const loginActions = [
-      // Step 1: Navigate to login page
+      // Step 1: Navigate to login page (SSO)
       {
         action: 'navigate',
-        url: 'https://app.hotmart.com/login',
+        url: 'https://sso.hotmart.com/login?service=https%3A%2F%2Fsso.hotmart.com%2Foauth2.0%2FcallbackAuthorize%3Fclient_id%3De29bbb29-747f-4c23-8f6c-aa0268ca7203%26scope%3Dopenid%2Bprofile%2Bemail%2Bauthorities%2Buser%26redirect_uri%3Dhttps%253A%252F%252Fpages.hotmart.com%252Fauth%252Flogin%26response_type%3Dcode%26response_mode%3Dquery%26state%3D1ee9a04d7887487e9daa3801c27862fe%26client_name%3DCasOAuthClient',
         waitUntil: 'load',
-        description: 'Navigate to Hotmart login page'
+        description: 'Navigate to Hotmart SSO login page'
       },
       
       // Step 2: Wait for page to load
@@ -274,10 +274,10 @@ class HotmartLoginService {
         action: 'fill',
         selectors: [
           'input[type="email"]',
-          'input[name="email"]',
-          'input[id*="email"]',
-          'input[placeholder*="email"]',
-          'input[placeholder*="Email"]'
+          'input[name="username"]',
+          'input[id="username"]',
+          'input[placeholder*="Email"]',
+          'input[placeholder*="email"]'
         ],
         value: 'HOTMART_EMAIL',
         waitAfter: 1000,
@@ -303,15 +303,14 @@ class HotmartLoginService {
       {
         action: 'click',
         selectors: [
+          'button:contains("Log in")',
           'button[type="submit"]',
           'button:contains("Login")',
           'button:contains("Entrar")',
-          'button:contains("Sign in")',
-          'button[class*="login"]',
-          'button[class*="submit"]'
+          'button:contains("Sign in")'
         ],
         method: 'javascript',
-        waitAfter: 3000,
+        waitAfter: 5000,
         description: 'Click login button'
       },
       
@@ -326,45 +325,51 @@ class HotmartLoginService {
       // Step 8: Detect 2FA or success
       {
         action: 'detect',
-        condition: 'element_exists',
-        selectors: [
-          'input[name*="code"]',
-          'input[id*="code"]',
-          'input[placeholder*="code"]',
-          'input[placeholder*="código"]',
-          'input[type="tel"]'
-        ],
+        condition: 'url_contains',
+        text: 'verification',
         onTrue: 'NEEDS_2FA',
         onFalse: 'LOGIN_SUCCESS',
-        description: 'Check if 2FA is required'
+        description: 'Check if 2FA is required (URL-based detection)'
       }
     ];
     
     // If 2FA code is provided, add 2FA actions
     if (twoFactorCode) {
+      // Hotmart uses 6 individual input boxes for the code
+      // We need to fill each digit separately
+      const digits = twoFactorCode.toString().split('');
+      
       loginActions.push(
         {
-          action: 'fill',
-          selectors: [
-            'input[name*="code"]',
-            'input[id*="code"]',
-            'input[placeholder*="code"]'
-          ],
-          value: twoFactorCode,
-          waitAfter: 1000,
-          description: 'Fill 2FA code'
+          action: 'execute_js',
+          code: `
+            const inputs = document.querySelectorAll('input[type="text"], input[type="tel"], input[maxlength="1"]');
+            const code = '${twoFactorCode}';
+            for (let i = 0; i < Math.min(inputs.length, code.length); i++) {
+              inputs[i].value = code[i];
+              inputs[i].dispatchEvent(new Event('input', { bubbles: true }));
+              inputs[i].dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          `,
+          description: 'Fill all 6 2FA code digits'
+        },
+        {
+          action: 'wait',
+          condition: 'timeout',
+          duration: 1000,
+          description: 'Wait for code to be processed'
         },
         {
           action: 'click',
           selectors: [
+            'button:contains("Confirm")',
+            'button:contains("Confirmar")',
             'button[type="submit"]',
             'button:contains("Verify")',
-            'button:contains("Verificar")',
-            'button:contains("Confirm")',
-            'button:contains("Confirmar")'
+            'button:contains("Verificar")'
           ],
           method: 'javascript',
-          waitAfter: 3000,
+          waitAfter: 5000,
           description: 'Submit 2FA code'
         },
         {
