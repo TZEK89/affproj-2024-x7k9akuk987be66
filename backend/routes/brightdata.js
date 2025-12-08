@@ -196,12 +196,16 @@ router.post('/hotmart/search', async (req, res) => {
  */
 router.post('/hotmart/login', async (req, res) => {
   try {
-    const { email, password, twoFactorCode } = req.body;
+    const { twoFactorCode } = req.body;
+    
+    // Get credentials from environment variables
+    const email = process.env.HOTMART_EMAIL;
+    const password = process.env.HOTMART_PASSWORD;
     
     if (!email || !password) {
-      return res.status(400).json({ 
+      return res.status(500).json({ 
         success: false,
-        error: 'Email and password are required' 
+        error: 'Hotmart credentials not configured in environment variables' 
       });
     }
     
