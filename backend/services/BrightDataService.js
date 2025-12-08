@@ -638,19 +638,68 @@ class BrightDataService {
       
       await page.waitForTimeout(5000);
       
-      // Fill in email
-      console.log('[BrightData] Filling email...');
-      await page.fill('input[type="email"], input[name="email"], input[id*="email"]', email);
-      await page.waitForTimeout(1000);
+      // Use JavaScript injection to fill form (more reliable than Playwright methods)
+      console.log('[BrightData] Filling login form via JavaScript...');
+      await page.evaluate(({ email, password }) => {
+        // Find and fill email field
+        const emailInput = document.querySelector('input[type="email"]') || 
+                          document.querySelector('input[name="email"]') ||
+                          document.querySelector('input[id*="email"]') ||
+                          document.querySelector('input[placeholder*="email"]') ||
+                          document.querySelector('input[placeholder*="Email"]');
+        
+        if (emailInput) {
+          emailInput.value = email;
+          emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+          emailInput.dispatchEvent(new Event('change', { bubbles: true }));
+          console.log('Email filled');
+        } else {
+          console.error('Email input not found');
+        }
+        
+        // Find and fill password field
+        const passwordInput = document.querySelector('input[type="password"]') ||
+                             document.querySelector('input[name="password"]') ||
+                             document.querySelector('input[id*="password"]');
+        
+        if (passwordInput) {
+          passwordInput.value = password;
+          passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+          passwordInput.dispatchEvent(new Event('change', { bubbles: true }));
+          console.log('Password filled');
+        } else {
+          console.error('Password input not found');
+        }
+      }, { email, password });
       
-      // Fill in password
-      console.log('[BrightData] Filling password...');
-      await page.fill('input[type="password"], input[name="password"], input[id*="password"]', password);
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(2000);
       
-      // Click login button
-      console.log('[BrightData] Clicking login button...');
-      await page.click('button[type="submit"], button:has-text("Login"), button:has-text("Entrar")');
+      // Click login button via JavaScript
+      console.log('[BrightData] Clicking login button via JavaScript...');
+      await page.evaluate(() => {
+        const loginButton = document.querySelector('button[type="submit"]') ||
+                           document.querySelector('button:contains("Login")') ||
+                           document.querySelector('button:contains("Entrar")') ||
+                           document.querySelector('button[class*="login"]') ||
+                           document.querySelector('button[class*="Login"]') ||
+                           Array.from(document.querySelectorAll('button')).find(btn => 
+                             btn.textContent.toLowerCase().includes('login') ||
+                             btn.textContent.toLowerCase().includes('entrar')
+                           );
+        
+        if (loginButton) {
+          loginButton.click();
+          console.log('Login button clicked');
+        } else {
+          console.error('Login button not found');
+          // Try submitting the form directly
+          const form = document.querySelector('form');
+          if (form) {
+            form.submit();
+            console.log('Form submitted directly');
+          }
+        }
+      });
       
       // Wait for navigation or 2FA
       await page.waitForTimeout(5000);
