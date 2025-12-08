@@ -607,10 +607,11 @@ class BrightDataService {
         timestamp: new Date().toISOString()
       };
     }, {
+      waitUntil: 'domcontentloaded', // Don't wait for networkidle (Hotmart has too many tracking scripts)
       autoScroll: true,
-      waitTime: 2000,
+      waitTime: 5000, // Give more time for React to render
       screenshot: options.screenshot || false,
-      navigationTimeout: 60000
+      navigationTimeout: 90000 // Increase timeout
     });
   }
 
