@@ -638,6 +638,51 @@ class BrightDataService {
       
       await page.waitForTimeout(5000);
       
+      // Handle cookie banner first (common blocker)
+      console.log('[BrightData] Checking for cookie banner...');
+      await page.evaluate(() => {
+        // Common cookie banner button selectors
+        const cookieSelectors = [
+          'button:contains("Accept")',
+          'button:contains("Aceitar")',
+          'button:contains("Accept all")',
+          'button:contains("Aceitar todos")',
+          'button[id*="accept"]',
+          'button[id*="cookie"]',
+          'button[class*="accept"]',
+          'button[class*="cookie"]',
+          'a:contains("Accept")',
+          'a:contains("Aceitar")',
+          '[data-testid*="cookie"]',
+          '[data-testid*="accept"]'
+        ];
+        
+        // Try to find and click cookie accept button
+        const buttons = Array.from(document.querySelectorAll('button, a'));
+        const cookieButton = buttons.find(btn => {
+          const text = btn.textContent.toLowerCase();
+          return text.includes('accept') || 
+                 text.includes('aceitar') || 
+                 text.includes('concordo') ||
+                 text.includes('agree') ||
+                 btn.id.toLowerCase().includes('accept') ||
+                 btn.id.toLowerCase().includes('cookie') ||
+                 btn.className.toLowerCase().includes('accept') ||
+                 btn.className.toLowerCase().includes('cookie');
+        });
+        
+        if (cookieButton) {
+          console.log('Cookie banner found, clicking accept...');
+          cookieButton.click();
+          return true;
+        } else {
+          console.log('No cookie banner found');
+          return false;
+        }
+      });
+      
+      await page.waitForTimeout(2000);
+      
       // Use JavaScript injection to fill form (more reliable than Playwright methods)
       console.log('[BrightData] Filling login form via JavaScript...');
       await page.evaluate(({ email, password }) => {
