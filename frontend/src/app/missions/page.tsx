@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Play, Eye, Trash2, Brain, Zap, CheckCircle, XCircle, Clock } from 'lucide-react';
 import Header from '@/components/Header';
+import Breadcrumb from '@/components/Breadcrumb';
 import Button from '@/components/Button';
 import StatusBadge from '@/components/StatusBadge';
 import { formatDate } from '@/lib/utils';
@@ -115,9 +116,15 @@ export default function MissionsPage() {
 
   return (
     <div>
+      <div className="p-6 pb-0">
+        <Breadcrumb items={[
+          { name: 'Intelligence' },
+          { name: 'AI Agents' }
+        ]} />
+      </div>
       <Header
-        title="AI Research Missions"
-        subtitle="Intelligent marketplace research powered by AI agents"
+        title="AI Agents"
+        subtitle="Launch and monitor intelligent automation tasks"
       />
 
       <div className="p-6 space-y-6">
