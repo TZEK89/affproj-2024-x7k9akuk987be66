@@ -5,6 +5,11 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  // TEMPORARILY DISABLED FOR DEVELOPMENT
+  // Authentication is bypassed to allow direct dashboard access
+  return <>{children}</>;
+
+  /* ORIGINAL AUTH CODE - COMMENTED OUT FOR NOW
   const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -34,4 +39,5 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   }
 
   return <>{children}</>;
+  */
 }
