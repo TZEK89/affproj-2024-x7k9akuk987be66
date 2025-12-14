@@ -81,33 +81,27 @@ router.post('/', async (req, res) => {
     const {
       name,
       description,
-      seo_description,
       price,
       currency,
       image_url,
       affiliate_link,
       commission_rate,
-      category,
-      subcategory,
-      tags,
-      network,
-      network_product_id,
-      is_active
+      source,
+      source_id,
+      status,
+      notes
     } = req.body;
-
     const result = await req.db.query(
       `INSERT INTO products (
-        name, description, seo_description, price, currency, image_url,
-        affiliate_link, commission_rate, category, subcategory, tags,
-        network, network_product_id, is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        name, description, price, currency, image_url,
+        affiliate_link, commission_rate, source, source_id, status, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [
-        name, description, seo_description, price, currency || 'USD', image_url,
-        affiliate_link, commission_rate, category, subcategory, tags,
-        network, network_product_id, is_active !== undefined ? is_active : true
+        name, description, price, currency || 'USD', image_url,
+        affiliate_link, commission_rate, source, source_id, status || 'active', notes
       ]
-    );
+    );;
 
     res.status(201).json({
       success: true,
