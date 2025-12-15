@@ -81,6 +81,7 @@ const agenticRoutes = require('./routes/agenticRoutes');
 const brightdataRoutes = require('./routes/brightdata');
 const hotmartBrowserRoutes = require('./routes/hotmart-browser');
 const commandCenterRoutes = require('./routes/command-center');
+const agentManagementRoutes = require('./routes/agent-management');
 
 // Import job system for agent missions
 let jobSystem = null;
@@ -155,6 +156,7 @@ app.use('/api/agents', authMiddleware, agenticRoutes);
 app.use('/api/brightdata', brightdataRoutes);
 app.use('/api/hotmart-browser', hotmartBrowserRoutes);
 app.use('/api/command-center', commandCenterRoutes);
+app.use('/api/agent-management', agentManagementRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
