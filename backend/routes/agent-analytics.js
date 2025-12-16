@@ -7,6 +7,102 @@ const express = require('express');
 const router = express.Router();
 
 // In-memory storage for analytics (would be database in production)
+
+// LLM Cost Rates (per 1k tokens)
+const LLM_COSTS = {
+  'gpt-4o': 0.03,
+  'gpt-4o-mini': 0.00015,
+  'claude-3-5-sonnet': 0.003,
+  'claude-3-opus': 0.015,
+  'gemini-pro': 0.00125
+};
+
+// Mock Revenue Data (Revenue generated per task type - for ROI calculation)
+const TASK_REVENUE = {
+  'Product Research': 1.50,
+  'Content Creation': 2.55,
+  'Financial Analysis': 10.00,
+  'Campaign Management': 2.50,
+  'General': 1.00
+};
+
+// Helper function to calculate cost
+const calculateCost = (tokens, llmId) => {
+  const costPer1k = LLM_COSTS[llmId] || 0.03; // Default to gpt-4o cost
+  return (tokens / 1000) * costPer1k;
+};
+
+// Helper function to get task type
+const getTaskType = (task) => {
+  if (task.includes('product') || task.includes('research') || task.includes('score')) return 'Product Research';
+  if (task.includes('content') || task.includes('copy') || task.includes('email') || task.includes('social')) return 'Content Creation';
+  if (task.includes('revenue') || task.includes('expense') || task.includes('financial') || task.includes('analyze monthly')) return 'Financial Analysis';
+  if (task.includes('campaign') || task.includes('budget') || task.includes('optimize')) return 'Campaign Management';
+  return 'General';
+};
+
+// Helper function to calculate ROI
+const calculateROI = (revenue, cost) => {
+  if (cost === 0) return revenue > 0 ? Infinity : 0;
+  return ((revenue - cost) / cost) * 100;
+};
+
+// Helper function to format profitability
+const getProfitability = (roi) => {
+  if (roi > 20000) return 'high';
+  if (roi > 1000) return 'medium';
+  if (roi > 0) return 'low';
+  return 'negative';
+};
+
+// Augment agent data with LLM info (mocking the link to agent-management config)
+const AGENT_LLM_MAPPING = {
+  'oi_researcher': 'gpt-4o', 'oi_analyst': 'gpt-4o', 'oi_scorer': 'gpt-4o',
+  'cg_copywriter': 'gpt-4o', 'cg_email': 'gpt-4o', 'cg_social': 'gpt-4o',
+  'fi_revenue': 'gpt-4o-mini', 'fi_expense': 'gpt-4o-mini',
+  'cm_manager': 'gpt-4o', 'ae_analyst': 'gpt-4o'
+};
+
+// Augment executions with LLM info
+const augmentExecutions = (executions) => {
+  return executions.map(exec => {
+    const llmId = AGENT_LLM_MAPPING[exec.agentId] || 'gpt-4o';
+    const cost = calculateCost(exec.tokensUsed, llmId);
+    const taskType = getTaskType(exec.task);
+    const revenue = TASK_REVENUE[taskType] || TASK_REVENUE['General'];
+    
+    return {
+      ...exec,
+      llmId,
+      cost,
+      taskType,
+      revenue
+    };
+  });
+};
+
+// Augment agent data with cost/revenue/roi
+const augmentAgents = (agents, augmentedExecutions) => {
+  return agents.map(agent => {
+    const agentExecutions = augmentedExecutions.filter(e => e.agentId === agent.id);
+    const totalCost = agentExecutions.reduce((sum, e) => sum + e.cost, 0);
+    const totalRevenue = agentExecutions.reduce((sum, e) => sum + e.revenue, 0);
+    const avgCostPerTask = totalCost / agent.totalTasks;
+    const roi = calculateROI(totalRevenue, totalCost);
+    
+    return {
+      ...agent,
+      llmUsed: AGENT_LLM_MAPPING[agent.id] || 'gpt-4o',
+      totalCost: parseFloat(totalCost.toFixed(4)),
+      totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+      avgCostPerTask: parseFloat(avgCostPerTask.toFixed(4)),
+      roi: parseFloat(roi.toFixed(0)),
+      profitability: getProfitability(roi)
+    };
+  });
+};
+
+let analyticsData = {
 let analyticsData = {
   agents: [
     {
@@ -147,6 +243,131 @@ router.get('/agents/:agentId', (req, res) => {
     .slice(0, 20);
   
   res.json({ ...agent, recentExecutions });
+});
+
+// GET /api/agent-analytics/executions
+// GET /api/agent-analytics/cost-roi
+router.get('/cost-roi', (req, res) => {
+  const augmentedExecutions = augmentExecutions(analyticsData.executions);
+  const augmentedAgents = augmentAgents(analyticsData.agents, augmentedExecutions);
+  
+  // 1. By LLM
+  const llmMap = {};
+  augmentedExecutions.forEach(exec => {
+    if (!llmMap[exec.llmId]) {
+      llmMap[exec.llmId] = {
+        id: exec.llmId,
+        name: exec.llmId.toUpperCase().replace(/-/g, ' '),
+        model: exec.llmId,
+        costPer1kTokens: LLM_COSTS[exec.llmId] || 0.03,
+        totalTokensUsed: 0,
+        totalCost: 0,
+        taskCount: 0,
+        avgCostPerTask: 0,
+        costTrend: Math.random() * 5 * (Math.random() > 0.5 ? 1 : -1)
+      };
+    }
+    llmMap[exec.llmId].totalTokensUsed += exec.tokensUsed;
+    llmMap[exec.llmId].totalCost += exec.cost;
+    llmMap[exec.llmId].taskCount++;
+  });
+  const byLLM = Object.values(llmMap).map(llm => ({
+    ...llm,
+    avgCostPerTask: llm.totalCost / llm.taskCount
+  }));
+  
+  // 2. By Agent (already done in augmentedAgents)
+  const byAgent = augmentedAgents.map(agent => ({
+    id: agent.id,
+    name: agent.name,
+    coreId: agent.coreId,
+    coreName: agent.coreName,
+    llmUsed: agent.llmUsed,
+    totalTasks: agent.totalTasks,
+    totalTokens: agent.totalTasks * agent.avgTokensUsed, // Approximation
+    totalCost: agent.totalCost,
+    avgCostPerTask: agent.avgCostPerTask,
+    revenue: agent.totalRevenue,
+    roi: agent.roi,
+    roiTrend: Math.random() * 15 * (Math.random() > 0.5 ? 1 : -1),
+    profitability: agent.profitability
+  }));
+  
+  // 3. By Core
+  const coreMap = {};
+  byAgent.forEach(agent => {
+    if (!coreMap[agent.coreId]) {
+      coreMap[agent.coreId] = {
+        id: agent.coreId,
+        name: agent.coreName,
+        totalTasks: 0,
+        totalTokens: 0,
+        totalCost: 0,
+        totalRevenue: 0,
+        roi: 0,
+        agents: []
+      };
+    }
+    coreMap[agent.coreId].totalTasks += agent.totalTasks;
+    coreMap[agent.coreId].totalTokens += agent.totalTokens;
+    coreMap[agent.coreId].totalCost += agent.totalCost;
+    coreMap[agent.coreId].totalRevenue += agent.revenue;
+    coreMap[agent.coreId].agents.push(agent);
+  });
+  const byCore = Object.values(coreMap).map(core => ({
+    ...core,
+    roi: calculateROI(core.totalRevenue, core.totalCost)
+  }));
+  
+  // 4. By Task Type
+  const taskTypeMap = {};
+  augmentedExecutions.forEach(exec => {
+    if (!taskTypeMap[exec.taskType]) {
+      taskTypeMap[exec.taskType] = {
+        type: exec.taskType,
+        taskCount: 0,
+        totalTokens: 0,
+        totalCost: 0,
+        totalRevenue: 0
+      };
+    }
+    taskTypeMap[exec.taskType].taskCount++;
+    taskTypeMap[exec.taskType].totalTokens += exec.tokensUsed;
+    taskTypeMap[exec.taskType].totalCost += exec.cost;
+    taskTypeMap[exec.taskType].totalRevenue += exec.revenue;
+  });
+  const byTaskType = Object.values(taskTypeMap).map(task => ({
+    ...task,
+    avgCostPerTask: task.totalCost / task.taskCount,
+    avgRevenue: task.totalRevenue / task.taskCount,
+    roi: calculateROI(task.totalRevenue, task.totalCost)
+  }));
+  
+  // 5. Summary
+  const totalCost = byCore.reduce((sum, c) => sum + c.totalCost, 0);
+  const totalRevenue = byCore.reduce((sum, c) => sum + c.totalRevenue, 0);
+  const totalTasks = byCore.reduce((sum, c) => sum + c.totalTasks, 0);
+  const totalROI = calculateROI(totalRevenue, totalCost);
+  const costPerTask = totalCost / totalTasks;
+  const revenuePerTask = totalRevenue / totalTasks;
+  const profitPerTask = revenuePerTask - costPerTask;
+  
+  const summary = {
+    totalCost: parseFloat(totalCost.toFixed(4)),
+    totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+    totalROI: parseFloat(totalROI.toFixed(0)),
+    costTrend: 1.2, // Mock
+    revenueTrend: 8.5, // Mock
+    roiTrend: 12.3, // Mock
+    costPerTask: parseFloat(costPerTask.toFixed(4)),
+    revenuePerTask: parseFloat(revenuePerTask.toFixed(2)),
+    profitPerTask: parseFloat(profitPerTask.toFixed(2)),
+    mostExpensiveAgent: byAgent.sort((a, b) => b.avgCostPerTask - a.avgCostPerTask)[0].name,
+    mostProfitableAgent: byAgent.sort((a, b) => b.roi - a.roi)[0].name,
+    costSavingsOpportunity: 0.68 // Mock
+  };
+  
+  res.json({ byLLM, byAgent, byCore, byTaskType, summary });
 });
 
 // GET /api/agent-analytics/executions

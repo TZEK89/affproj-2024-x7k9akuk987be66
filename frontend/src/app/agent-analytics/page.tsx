@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { CostROIAnalysis } from './cost-roi-analysis';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -410,6 +411,10 @@ export default function AgentAnalytics() {
             <Sparkles className="h-4 w-4" />
             AI Insights
           </TabsTrigger>
+          <TabsTrigger value="cost-roi" className="gap-2">
+            <DollarSign className="h-4 w-4" />
+            Cost & ROI
+          </TabsTrigger>
         </TabsList>
 
         {/* Leaderboard Tab */}
@@ -683,6 +688,11 @@ export default function AgentAnalytics() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Cost & ROI Tab */}
+        <TabsContent value="cost-roi" className="space-y-4">
+          <CostROIAnalysis />
         </TabsContent>
 
         {/* AI Insights Tab */}
