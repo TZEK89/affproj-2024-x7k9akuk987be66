@@ -304,8 +304,63 @@ export default function IntegrationsPage() {
   };
 
   const handleConnect = async (integrationId: string) => {
-    // Navigate to the connect flow page
-    window.location.href = `/connect/${integrationId}`;
+    try {
+      // Call Manus connection API
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manus-connect/initiate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platformId: integrationId })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Show instructions modal
+        alert(
+          `🤖 Connection Initiated!\n\n` +
+          `Connection ID: ${data.connectionId}\n\n` +
+          `Next Steps:\n` +
+          `1. Message Manus: "Connect to ${data.platform}"\n` +
+          `2. Manus will open a browser for you to log in\n` +
+          `3. Complete login + 2FA\n` +
+          `4. Manus will capture and save your session\n` +
+          `5. This page will auto-update when connected\n\n` +
+          `Status will be checked every 5 seconds...`
+        );
+
+        // Start polling for connection status
+        startConnectionPolling(data.connectionId, integrationId);
+      } else {
+        alert(`❌ Failed to initiate connection: ${data.error}`);
+      }
+    } catch (error: any) {
+      alert(`❌ Error: ${error.message}`);
+    }
+  };
+
+  const startConnectionPolling = (connectionId: string, platformId: string) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manus-connect/status/${connectionId}`);
+        const data = await response.json();
+
+        if (data.status === 'connected') {
+          clearInterval(pollInterval);
+          alert(`✅ Successfully connected to ${platformId.toUpperCase()}!\n\nYou can now run scraping missions.`);
+          await loadImpactStatus();
+        } else if (data.status === 'error' || data.status === 'failed') {
+          clearInterval(pollInterval);
+          alert(`❌ Connection failed. Please try again.`);
+        }
+      } catch (error) {
+        // Continue polling on error
+      }
+    }, 5000); // Poll every 5 seconds
+
+    // Stop polling after 10 minutes
+    setTimeout(() => {
+      clearInterval(pollInterval);
+    }, 600000);
   };
 
   const handleVerifyConnection = async (integrationId: string) => {
