@@ -44,6 +44,10 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Import middleware
+const authMiddleware = require('./middleware/auth');
+const mockUser = require('./middleware/mock-user');
+
 // Add database to request object
 app.use((req, res, next) => {
   req.db = pool;
@@ -58,10 +62,6 @@ app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
-
-// Import middleware
-const authMiddleware = require('./middleware/auth');
-const mockUser = require('./middleware/mock-user');
 
 // Import routes
 const authRoutes = require('./routes/auth');
