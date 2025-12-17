@@ -88,6 +88,7 @@ const commandCenterRoutes = require('./routes/command-center');
 const agentManagementRoutes = require('./routes/agent-management');
 const agentAnalyticsRoutes = require('./routes/agent-analytics');
 const platformConnectionsRoutes = require('./routes/platform-connections');
+const manusConnectRoutes = require('./routes/manus-connect');
 
 // Import job system for agent missions
 let jobSystem = null;
@@ -165,6 +166,7 @@ app.use('/api/command-center', commandCenterRoutes);
 app.use('/api/agent-management', agentManagementRoutes);
 app.use('/api/agent-analytics', agentAnalyticsRoutes);
 app.use('/api/platform-connections', platformConnectionsRoutes);
+app.use('/api/manus-connect', manusConnectRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
