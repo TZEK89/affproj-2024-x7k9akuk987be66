@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
+const platformConnector = require('../services/platform-connector');
 
 const supabase = createClient(
   process.env.SUPABASE_URL || 'https://oyclropoirfafifotqqu.supabase.co',
@@ -71,41 +72,38 @@ const PLATFORMS = {
   }
 };
 
-// Initiate login flow
+// Initiate login flow with Playwright
 router.post('/initiate-login', async (req, res) => {
   try {
     const { platformId } = req.body;
-    const platform = PLATFORMS[platformId];
 
-    if (!platform) {
-      return res.status(400).json({ error: 'Invalid platform ID' });
-    }
+    // Use new Playwright connector
+    const result = await platformConnector.initiateConnection(platformId);
 
-    // Create a pending connection record
-    const { data, error } = await supabase
-      .from('platform_connections')
-      .insert({
-        platform_id: platformId,
-        platform_name: platform.name,
-        status: 'pending',
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating connection record:', error);
-      return res.status(500).json({ error: 'Failed to initiate login' });
-    }
-
-    res.json({
-      success: true,
-      loginUrl: platform.loginUrl,
-      connectionId: data.id
-    });
+    res.json(result);
   } catch (error) {
     console.error('Error initiating login:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to initiate login'
+    });
+  }
+});
+
+// Capture session after manual login
+router.post('/capture-session', async (req, res) => {
+  try {
+    const { platformId } = req.body;
+
+    const result = await platformConnector.captureSession(platformId);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error capturing session:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to capture session'
+    });
   }
 });
 
@@ -114,40 +112,36 @@ router.get('/status/:platformId', async (req, res) => {
   try {
     const { platformId } = req.params;
 
-    const { data, error } = await supabase
-      .from('platform_connections')
-      .select('*')
-      .eq('platform_id', platformId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    const status = await platformConnector.getConnectionStatus(platformId);
 
-    if (error || !data) {
-      return res.json({ status: 'disconnected' });
-    }
-
-    // Check if session is expired (older than 7 days)
-    const sessionAge = Date.now() - new Date(data.created_at).getTime();
-    const sevenDays = 7 * 24 * 60 * 60 * 1000;
-
-    if (data.status === 'connected' && sessionAge > sevenDays) {
-      // Mark as expired
-      await supabase
-        .from('platform_connections')
-        .update({ status: 'expired' })
-        .eq('id', data.id);
-
-      return res.json({ status: 'expired' });
-    }
-
-    res.json({
-      status: data.status,
-      lastConnected: data.created_at,
-      sessionData: data.session_data
-    });
+    res.json(status);
   } catch (error) {
     console.error('Error checking status:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      status: 'error',
+      error: error.message || 'Internal server error'
+    });
+  }
+});
+
+// Verify connection
+router.post('/verify/:platformId', async (req, res) => {
+  try {
+    const { platformId } = req.params;
+
+    const isValid = await platformConnector.verifyConnection(platformId);
+
+    res.json({
+      success: true,
+      isValid,
+      status: isValid ? 'connected' : 'expired'
+    });
+  } catch (error) {
+    console.error('Error verifying connection:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to verify connection'
+    });
   }
 });
 
@@ -187,17 +181,9 @@ router.post('/disconnect/:platformId', async (req, res) => {
   try {
     const { platformId } = req.params;
 
-    const { error } = await supabase
-      .from('platform_connections')
-      .update({ status: 'disconnected', session_data: null })
-      .eq('platform_id', platformId);
+    const result = await platformConnector.disconnect(platformId);
 
-    if (error) {
-      console.error('Error disconnecting:', error);
-      return res.status(500).json({ error: 'Failed to disconnect' });
-    }
-
-    res.json({ success: true });
+    res.json(result);
   } catch (error) {
     console.error('Error disconnecting:', error);
     res.status(500).json({ error: 'Internal server error' });

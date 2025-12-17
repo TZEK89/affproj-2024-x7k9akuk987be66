@@ -303,6 +303,29 @@ export default function IntegrationsPage() {
     }
   };
 
+  const handleConnect = async (integrationId: string) => {
+    // Navigate to the connect flow page
+    window.location.href = `/connect/${integrationId}`;
+  };
+
+  const handleVerifyConnection = async (integrationId: string) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/platform-connections/status/${integrationId}`);
+      const data = await response.json();
+
+      if (data.status === 'connected') {
+        alert(`✅ Successfully connected to ${integrationId.toUpperCase()}!`);
+        await loadImpactStatus();
+      } else if (data.status === 'pending') {
+        alert(`⏳ Connection still pending. Please complete the login process and try again.`);
+      } else {
+        alert(`❌ Not connected. Please click "Connect" and log in first.`);
+      }
+    } catch (error: any) {
+      alert(`❌ Error: ${error.message}`);
+    }
+  };
+
   const handleTestConnection = async (integrationId: string) => {
     if (integrationId === 'impact') {
       try {
@@ -325,7 +348,8 @@ export default function IntegrationsPage() {
         alert(`❌ Failed to connect to Hotmart:\n\n${error.message}`);
       }
     } else {
-      alert(`Testing ${integrationId} connection... (not implemented yet)`);
+      // Use the new OAuth flow for other platforms
+      await handleConnect(integrationId);
     }
   };
 
