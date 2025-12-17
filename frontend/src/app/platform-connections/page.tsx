@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import apiClient from '@/lib/api';
 
 interface Platform {
   id: string;
@@ -96,13 +97,11 @@ export default function PlatformConnectionsPage() {
 
     try {
       // Call backend API to initiate login flow
-      const response = await fetch('/api/platform-connections/initiate-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platformId: platform.id })
+      const response = await apiClient.post('/platform-connections/initiate-login', {
+        platformId: platform.id
       });
 
-      const data = await response.json();
+      const data = response.data;
 
       if (data.success) {
         // Open browser window for manual login
@@ -120,8 +119,8 @@ export default function PlatformConnectionsPage() {
   const pollConnectionStatus = (platformId: string) => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/platform-connections/status/${platformId}`);
-        const data = await response.json();
+        const response = await apiClient.get(`/platform-connections/status/${platformId}`);
+        const data = response.data;
 
         if (data.status === 'connected') {
           clearInterval(interval);
@@ -150,9 +149,7 @@ export default function PlatformConnectionsPage() {
 
   const handleDisconnect = async (platformId: string) => {
     try {
-      await fetch(`/api/platform-connections/disconnect/${platformId}`, {
-        method: 'POST'
-      });
+      await apiClient.post(`/platform-connections/disconnect/${platformId}`);
 
       setPlatforms(prev => prev.map(p => 
         p.id === platformId 
@@ -166,13 +163,11 @@ export default function PlatformConnectionsPage() {
 
   const handleScrape = async (platformId: string) => {
     try {
-      const response = await fetch('/api/platform-connections/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platformId })
+      const response = await apiClient.post('/platform-connections/scrape', {
+        platformId
       });
 
-      const data = await response.json();
+      const data = response.data;
       
       if (data.success) {
         alert(`Scraping started! This will run in the background.`);
