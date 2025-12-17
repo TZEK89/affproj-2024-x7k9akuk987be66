@@ -304,25 +304,37 @@ export default function IntegrationsPage() {
   };
 
   const handleConnect = async (integrationId: string) => {
-    setConnectingId(integrationId);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/browser-session/start`, {
+      // Call Manus connection API
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manus-connect/initiate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platformId: integrationId })
       });
+
       const data = await response.json();
+
       if (data.success) {
-        const viewerUrl = `${window.location.origin}/browser-session/${data.sessionId}`;
-        window.open(viewerUrl, '_blank', 'width=1200,height=800');
-        alert(`🌐 Browser Session Started!\n\nSession ID: ${data.sessionId}\n\nNext Steps:\n1. A new window has opened\n2. Message Manus: "Connect to ${integrationId}"\n3. Watch the browser window\n4. Complete login + 2FA\n5. Manus captures your session`);
+        // Show instructions modal
+        alert(
+          `🤖 Connection Initiated!\n\n` +
+          `Connection ID: ${data.connectionId}\n\n` +
+          `Next Steps:\n` +
+          `1. Message Manus: "Connect to ${data.platform}"\n` +
+          `2. Manus will open a browser for you to log in\n` +
+          `3. Complete login + 2FA\n` +
+          `4. Manus will capture and save your session\n` +
+          `5. This page will auto-update when connected\n\n` +
+          `Status will be checked every 5 seconds...`
+        );
+
+        // Start polling for connection status
+        startConnectionPolling(data.connectionId, integrationId);
       } else {
-        alert(`❌ Failed: ${data.error}`);
+        alert(`❌ Failed to initiate connection: ${data.error}`);
       }
     } catch (error: any) {
       alert(`❌ Error: ${error.message}`);
-    } finally {
-      setConnectingId(null);
     }
   };
 
