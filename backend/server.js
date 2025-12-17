@@ -90,6 +90,7 @@ const agentAnalyticsRoutes = require('./routes/agent-analytics');
 const platformConnectionsRoutes = require('./routes/platform-connections');
 const manusConnectRoutes = require('./routes/manus-connect');
 const browserSessionRoutes = require('./routes/browser-session');
+const manusBrowserRoutes = require('./routes/manus-browser');
 
 // Import job system for agent missions
 let jobSystem = null;
@@ -169,6 +170,7 @@ app.use('/api/agent-analytics', agentAnalyticsRoutes);
 app.use('/api/platform-connections', platformConnectionsRoutes);
 app.use('/api/manus-connect', manusConnectRoutes);
 app.use('/api/browser-session', browserSessionRoutes);
+app.use('/api/manus-browser', manusBrowserRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
