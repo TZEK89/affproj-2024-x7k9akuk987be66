@@ -94,64 +94,77 @@ function detectCore(message) {
   return 'offer_intelligence';
 }
 
-// Execute a Python runner
+// Execute AI analysis using OpenAI API (replaces Python runner)
 async function executeRunner(core, task, options = {}) {
-  return new Promise((resolve, reject) => {
-    const coreConfig = CORES[core];
-    if (!coreConfig || !coreConfig.runner) {
-      resolve({
-        status: 'simulated',
-        core,
-        agents: coreConfig?.agents || [],
-        result: `Simulated execution of ${core}. Runner not yet implemented.`,
-        tokensUsed: Math.floor(Math.random() * 500) + 500
-      });
-      return;
-    }
+  const coreConfig = CORES[core];
+  const agents = coreConfig?.agents || [];
+  
+  // Use OpenAI API for AI analysis
+  const OpenAI = require('openai');
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  
+  const systemPrompts = {
+    offer_intelligence: `You are an AI Offer Intelligence system with 3 specialized agents:
+- Market Researcher: Analyzes market trends and demand
+- Competitor Analyst: Evaluates competition and positioning  
+- Scoring Agent: Calculates product scores based on multiple factors
 
-    const runnerPath = path.join(__dirname, '../../ai-orchestration/runners', coreConfig.runner);
-    const args = ['--task', task, '--output', 'json'];
+Analyze affiliate products and provide actionable recommendations. Focus on:
+1. Market demand and trends
+2. Competition level
+3. Conversion potential
+4. Commission value
+5. Risk assessment
+
+Provide specific, data-driven insights.`,
+    content_generation: `You are an AI Content Generation system with 4 specialized agents:
+- Copywriter: Creates compelling sales copy
+- Email Specialist: Writes email sequences
+- Social Media Expert: Creates social content
+- Video Scripter: Writes video scripts
+
+Generate high-converting affiliate marketing content.`,
+    financial_intelligence: `You are an AI Financial Intelligence system with 3 specialized agents:
+- Revenue Tracker: Monitors income streams
+- Expense Analyzer: Tracks costs and ROI
+- Profit Calculator: Projects profitability
+
+Provide financial analysis and projections for affiliate campaigns.`
+  };
+  
+  const systemPrompt = systemPrompts[core] || systemPrompts.offer_intelligence;
+  
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: task }
+      ],
+      max_tokens: 1000,
+      temperature: 0.7
+    });
     
-    if (options.niche) args.push('--niche', options.niche);
-    if (options.minCommission) args.push('--min-commission', options.minCommission.toString());
+    const tokensUsed = completion.usage?.total_tokens || 500;
     
-    const python = spawn('python3', [runnerPath, ...args]);
-    let output = '';
-    let error = '';
-
-    python.stdout.on('data', (data) => {
-      output += data.toString();
-    });
-
-    python.stderr.on('data', (data) => {
-      error += data.toString();
-    });
-
-    python.on('close', (code) => {
-      if (code === 0) {
-        try {
-          const result = JSON.parse(output);
-          resolve({
-            status: 'success',
-            core,
-            agents: coreConfig.agents,
-            result: result.result,
-            tokensUsed: result.tokens_used || 0
-          });
-        } catch (e) {
-          resolve({
-            status: 'success',
-            core,
-            agents: coreConfig.agents,
-            result: output,
-            tokensUsed: Math.floor(Math.random() * 500) + 500
-          });
-        }
-      } else {
-        reject(new Error(error || 'Runner execution failed'));
-      }
-    });
-  });
+    return {
+      status: 'success',
+      core,
+      agents,
+      result: completion.choices[0].message.content,
+      tokensUsed
+    };
+  } catch (error) {
+    console.error('OpenAI API error:', error.message);
+    // Fallback to simulated response
+    return {
+      status: 'simulated',
+      core,
+      agents,
+      result: `AI analysis for ${core}: ${task}\n\nNote: AI service temporarily unavailable. Please try again.`,
+      tokensUsed: 0
+    };
+  }
 }
 
 // GET /api/command-center/status
