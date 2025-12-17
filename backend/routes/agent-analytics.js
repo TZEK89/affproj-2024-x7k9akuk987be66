@@ -103,7 +103,6 @@ const augmentAgents = (agents, augmentedExecutions) => {
 };
 
 let analyticsData = {
-let analyticsData = {
   agents: [
     {
       id: 'oi_researcher', name: 'Market Researcher', coreId: 'offer_intelligence', coreName: 'Offer Intelligence',
