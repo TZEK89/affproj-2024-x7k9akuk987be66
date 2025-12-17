@@ -91,6 +91,7 @@ const platformConnectionsRoutes = require('./routes/platform-connections');
 const manusConnectRoutes = require('./routes/manus-connect');
 const browserSessionRoutes = require('./routes/browser-session');
 const manusBrowserRoutes = require('./routes/manus-browser');
+const llmConfigRoutes = require('./routes/llm-config');
 
 // Import job system for agent missions
 let jobSystem = null;
@@ -171,6 +172,7 @@ app.use('/api/platform-connections', platformConnectionsRoutes);
 app.use('/api/manus-connect', manusConnectRoutes);
 app.use('/api/browser-session', browserSessionRoutes);
 app.use('/api/manus-browser', manusBrowserRoutes);
+app.use('/api/llm-config', llmConfigRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
