@@ -33,6 +33,7 @@ export default function IntegrationsPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStats, setSyncStats] = useState<SyncStats | null>(null);
   const [syncMessage, setSyncMessage] = useState<string>('');
+  const [connectingId, setConnectingId] = useState<string | null>(null);
 
   // Load Impact.com status on mount
   useEffect(() => {
