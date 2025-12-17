@@ -11,7 +11,18 @@ const crypto = require('crypto');
 class ManusBrowserController {
   constructor() {
     this.activeSessions = new Map();
-    this.ENCRYPTION_KEY = process.env.SESSION_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+    
+    // Validate encryption key is set
+    if (!process.env.SESSION_ENCRYPTION_KEY) {
+      throw new Error('SESSION_ENCRYPTION_KEY environment variable is required');
+    }
+    
+    // Validate key format (must be 64 hex characters = 32 bytes)
+    if (!/^[0-9a-f]{64}$/i.test(process.env.SESSION_ENCRYPTION_KEY)) {
+      throw new Error('SESSION_ENCRYPTION_KEY must be a 64-character hexadecimal string');
+    }
+    
+    this.ENCRYPTION_KEY = process.env.SESSION_ENCRYPTION_KEY;
   }
 
   /**

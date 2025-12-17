@@ -1,4 +1,4 @@
-import apiClient from './api';
+import { apiClient } from './api';
 
 // Products API
 export const productsApi = {

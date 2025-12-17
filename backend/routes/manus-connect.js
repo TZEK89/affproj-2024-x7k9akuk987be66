@@ -1,12 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { createClient } = require('@supabase/supabase-js');
+const { supabase } = require('../config/supabase');
 const crypto = require('crypto');
-
-const supabase = createClient(
-  process.env.SUPABASE_URL || 'https://oyclropoirfafifotqqu.supabase.co',
-  process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || ''
-);
 
 // Platform configurations
 const PLATFORMS = {

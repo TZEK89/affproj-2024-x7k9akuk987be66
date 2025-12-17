@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { supabase } = require('../config/supabase');
 const agenticScraper = require('../services/agentic-scraper');
 
 /**
@@ -8,7 +9,11 @@ const agenticScraper = require('../services/agentic-scraper');
  */
 router.post('/missions', async (req, res) => {
   try {
-    const userId = req.user?.userId || 1;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
     const { platformId, goal, constraints } = req.body;
 
     if (!platformId || !goal) {
@@ -40,9 +45,13 @@ router.post('/missions', async (req, res) => {
  */
 router.get('/missions', async (req, res) => {
   try {
-    const userId = req.user?.userId || 1;
+    const userId = req.user?.userId;
 
-    const { data, error } = await require('../config/supabase').supabase
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
+
+    const { data, error } = await supabase
       .from('scraping_missions')
       .select('*')
       .eq('user_id', userId)
@@ -69,10 +78,14 @@ router.get('/missions', async (req, res) => {
  */
 router.get('/missions/:id', async (req, res) => {
   try {
-    const userId = req.user?.userId || 1;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
     const { id } = req.params;
 
-    const { data, error } = await require('../config/supabase').supabase
+    const { data, error } = await supabase
       .from('scraping_missions')
       .select('*')
       .eq('id', id)

@@ -1,15 +1,18 @@
 const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
-const { createClient } = require('@supabase/supabase-js');
+const { supabase } = require('../config/supabase');
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || 'https://oyclropoirfafifotqqu.supabase.co',
-  process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || ''
-);
+// Encryption configuration - validate required
+if (!process.env.SESSION_ENCRYPTION_KEY) {
+  throw new Error('SESSION_ENCRYPTION_KEY environment variable is required');
+}
 
-// Encryption configuration
-const ENCRYPTION_KEY = process.env.SESSION_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+if (!/^[0-9a-f]{64}$/i.test(process.env.SESSION_ENCRYPTION_KEY)) {
+  throw new Error('SESSION_ENCRYPTION_KEY must be a 64-character hexadecimal string');
+}
+
+const ENCRYPTION_KEY = process.env.SESSION_ENCRYPTION_KEY;
 const ALGORITHM = 'aes-256-gcm';
 const SESSION_DIR = path.join(__dirname, '../.sessions');
 

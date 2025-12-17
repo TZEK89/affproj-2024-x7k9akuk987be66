@@ -161,7 +161,7 @@ app.use('/api/product-images', productImagesRoutes);
 app.use('/api/integrations', integrationsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/agents', agentsRoutes);
-app.use('/api/agents', agentsExecuteRoutes);
+app.use('/api/agents/execute', agentsExecuteRoutes);
 app.use('/api/browser', browserController);
 app.use('/api/agentic', agenticRoutes);
 app.use('/api/brightdata', brightdataRoutes);

@@ -3,8 +3,16 @@ const router = express.Router();
 const { supabase } = require('../config/supabase');
 const crypto = require('crypto');
 
-// Encryption for API keys
-const ENCRYPTION_KEY = process.env.API_KEY_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+// Encryption for API keys - validate required
+if (!process.env.API_KEY_ENCRYPTION_KEY) {
+  throw new Error('API_KEY_ENCRYPTION_KEY environment variable is required');
+}
+
+if (!/^[0-9a-f]{64}$/i.test(process.env.API_KEY_ENCRYPTION_KEY)) {
+  throw new Error('API_KEY_ENCRYPTION_KEY must be a 64-character hexadecimal string');
+}
+
+const ENCRYPTION_KEY = process.env.API_KEY_ENCRYPTION_KEY;
 
 function encryptApiKey(apiKey) {
   const iv = crypto.randomBytes(16);
@@ -45,7 +53,11 @@ function decryptApiKey(encryptedData) {
  */
 router.get('/', async (req, res) => {
   try {
-    const userId = req.user?.userId || 1;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
 
     const { data, error } = await supabase
       .from('llm_configurations')
@@ -80,7 +92,11 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const userId = req.user?.userId || 1;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
     const { provider, model, displayName, apiKey, baseUrl } = req.body;
 
     if (!provider || !model || !apiKey) {
@@ -133,7 +149,11 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   try {
-    const userId = req.user?.userId || 1;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
     const { id } = req.params;
     const { displayName, apiKey, baseUrl, isActive } = req.body;
 
@@ -181,7 +201,11 @@ router.put('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const userId = req.user?.userId || 1;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
     const { id } = req.params;
 
     const { error } = await supabase

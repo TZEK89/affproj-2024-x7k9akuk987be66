@@ -12,7 +12,12 @@ const activeSessions = new Map();
  */
 router.post('/start', async (req, res) => {
   try {
-    const { platformId, userId = 1 } = req.body;
+    const { platformId } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
 
     // Create session ID
     const sessionId = uuidv4();
