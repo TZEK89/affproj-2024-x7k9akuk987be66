@@ -64,7 +64,7 @@ router.get('/', async (req, res) => {
  * POST /api/ai/generate-image
  * Generate an image using AI
  */
-router.post('/generate-image', authenticateToken, async (req, res) => {
+router.post('/generate-image', async (req, res) => {
   try {
     const {
       provider = 'auto',
@@ -106,7 +106,7 @@ router.post('/generate-image', authenticateToken, async (req, res) => {
  * POST /api/ai/generate-content
  * Generate text content using AI
  */
-router.post('/generate-content', authenticateToken, async (req, res) => {
+router.post('/generate-content', async (req, res) => {
   try {
     const {
       provider = 'auto',
@@ -150,7 +150,7 @@ router.post('/generate-content', authenticateToken, async (req, res) => {
  * POST /api/ai/analyze
  * Analyze data using AI
  */
-router.post('/analyze', authenticateToken, async (req, res) => {
+router.post('/analyze', async (req, res) => {
   try {
     const {
       provider = 'auto',
@@ -188,7 +188,7 @@ router.post('/analyze', authenticateToken, async (req, res) => {
  * POST /api/ai/chat
  * Chat with AI assistant
  */
-router.post('/chat', authenticateToken, async (req, res) => {
+router.post('/chat', async (req, res) => {
   try {
     const {
       provider = 'auto',
@@ -226,7 +226,7 @@ router.post('/chat', authenticateToken, async (req, res) => {
  * GET /api/ai/providers
  * Get available AI providers
  */
-router.get('/providers', authenticateToken, async (req, res) => {
+router.get('/providers', async (req, res) => {
   try {
     const providers = await AIService.getAvailableProviders();
     
@@ -253,7 +253,7 @@ router.get('/providers', authenticateToken, async (req, res) => {
  * GET /api/ai/settings
  * Get user's AI settings
  */
-router.get('/settings', authenticateToken, async (req, res) => {
+router.get('/settings', async (req, res) => {
   try {
     const settings = await AIService.getUserSettings(req.user.userId);
     
@@ -284,7 +284,7 @@ router.get('/settings', authenticateToken, async (req, res) => {
  * PUT /api/ai/settings/:provider
  * Update user's AI settings for a provider
  */
-router.put('/settings/:provider', authenticateToken, async (req, res) => {
+router.put('/settings/:provider', async (req, res) => {
   try {
     const { provider } = req.params;
     const {
@@ -327,7 +327,7 @@ router.put('/settings/:provider', authenticateToken, async (req, res) => {
  * GET /api/ai/history
  * Get AI generation history
  */
-router.get('/history', authenticateToken, async (req, res) => {
+router.get('/history', async (req, res) => {
   try {
     const {
       provider,
@@ -362,7 +362,7 @@ router.get('/history', authenticateToken, async (req, res) => {
  * GET /api/ai/stats
  * Get AI usage statistics
  */
-router.get('/stats', authenticateToken, async (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
     const {
       startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -393,7 +393,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
  * POST /api/ai/test-connection
  * Test API connection for a provider
  */
-router.post('/test-connection', authenticateToken, async (req, res) => {
+router.post('/test-connection', async (req, res) => {
   try {
     const { provider, apiKey } = req.body;
 

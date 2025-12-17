@@ -47,7 +47,7 @@ try {
  * 4. Adapt strategy based on results
  * 5. Complete when goal is achieved
  */
-router.post('/execute-agentic/:id', authenticateToken, async (req, res) => {
+router.post('/execute-agentic/:id', async (req, res) => {
   try {
     const missionId = parseInt(req.params.id);
     const { credentials = {} } = req.body;
@@ -128,7 +128,7 @@ router.post('/execute-agentic/:id', authenticateToken, async (req, res) => {
  * 3. Extract products
  * 4. AI analyzes results at the end
  */
-router.post('/execute-scripted/:id', authenticateToken, async (req, res) => {
+router.post('/execute-scripted/:id', async (req, res) => {
   try {
     const missionId = parseInt(req.params.id);
     const { credentials = {} } = req.body;
@@ -239,7 +239,7 @@ router.get('/execution-modes', (req, res) => {
  *   credentials: { email, password }
  * }
  */
-router.post('/missions/:id/execute', authenticateToken, async (req, res) => {
+router.post('/missions/:id/execute', async (req, res) => {
   try {
     const missionId = parseInt(req.params.id);
     let { mode = 'auto', credentials = {} } = req.body;

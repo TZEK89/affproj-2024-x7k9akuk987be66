@@ -112,7 +112,7 @@ router.get('/', async (req, res) => {
  * GET /api/agents/missions
  * List all agent missions for the user
  */
-router.get('/missions', authenticateToken, async (req, res) => {
+router.get('/missions', async (req, res) => {
   try {
     const { status, platform, limit = 20, offset = 0 } = req.query;
     
@@ -183,7 +183,7 @@ router.get('/missions', authenticateToken, async (req, res) => {
  * Create a new agent research mission
  * Now integrates with the job queue for async processing
  */
-router.post('/missions', authenticateToken, async (req, res) => {
+router.post('/missions', async (req, res) => {
   try {
     const {
       missionType = 'research',
@@ -307,7 +307,7 @@ router.post('/missions', authenticateToken, async (req, res) => {
  * GET /api/agents/missions/:id
  * Get details of a specific mission
  */
-router.get('/missions/:id', authenticateToken, async (req, res) => {
+router.get('/missions/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -368,7 +368,7 @@ router.get('/missions/:id', authenticateToken, async (req, res) => {
  * GET /api/agents/missions/:id/job-status
  * Get real-time job queue status for a mission
  */
-router.get('/missions/:id/job-status', authenticateToken, async (req, res) => {
+router.get('/missions/:id/job-status', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -412,7 +412,7 @@ router.get('/missions/:id/job-status', authenticateToken, async (req, res) => {
  * DELETE /api/agents/missions/:id
  * Cancel/delete a mission
  */
-router.delete('/missions/:id', authenticateToken, async (req, res) => {
+router.delete('/missions/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -469,7 +469,7 @@ router.delete('/missions/:id', authenticateToken, async (req, res) => {
  * GET /api/agents/discovered-products
  * List all products discovered by agents
  */
-router.get('/discovered-products', authenticateToken, async (req, res) => {
+router.get('/discovered-products', async (req, res) => {
   try {
     const { 
       platform, 
@@ -553,7 +553,7 @@ router.get('/discovered-products', authenticateToken, async (req, res) => {
  * POST /api/agents/discovered-products/:id/affiliate
  * Move a discovered product to the main products table (affiliate with it)
  */
-router.post('/discovered-products/:id/affiliate', authenticateToken, async (req, res) => {
+router.post('/discovered-products/:id/affiliate', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -647,7 +647,7 @@ router.post('/discovered-products/:id/affiliate', authenticateToken, async (req,
  * POST /api/agents/discovered-products/:id/reject
  * Reject a discovered product
  */
-router.post('/discovered-products/:id/reject', authenticateToken, async (req, res) => {
+router.post('/discovered-products/:id/reject', async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
@@ -683,7 +683,7 @@ router.post('/discovered-products/:id/reject', authenticateToken, async (req, re
  * GET /api/agents/stats
  * Get agent system statistics for the user
  */
-router.get('/stats', authenticateToken, async (req, res) => {
+router.get('/stats', async (req, res) => {
   try {
     const userId = req.user.userId;
     
@@ -753,7 +753,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
  * GET /api/agents/queue/stats
  * Get job queue statistics (admin/monitoring endpoint)
  */
-router.get('/queue/stats', authenticateToken, async (req, res) => {
+router.get('/queue/stats', async (req, res) => {
   try {
     if (!jobSystem) {
       return res.json({
@@ -779,7 +779,7 @@ router.get('/queue/stats', authenticateToken, async (req, res) => {
  * POST /api/agents/queue/retry/:missionId
  * Retry a failed mission
  */
-router.post('/queue/retry/:missionId', authenticateToken, async (req, res) => {
+router.post('/queue/retry/:missionId', async (req, res) => {
   try {
     const { missionId } = req.params;
     

@@ -14,7 +14,7 @@ const AgentExecutor = require('../services/agents/AgentExecutor');
  * Manually trigger execution of a pending mission
  * (In production, this will be handled by BullMQ job queue)
  */
-router.post('/execute/:id', authenticateToken, async (req, res) => {
+router.post('/execute/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { credentials } = req.body;
@@ -80,7 +80,7 @@ router.post('/execute/:id', authenticateToken, async (req, res) => {
  * POST /api/agents/test-browser
  * Test browser automation without executing a full mission
  */
-router.post('/test-browser', authenticateToken, async (req, res) => {
+router.post('/test-browser', async (req, res) => {
   try {
     const { platform, credentials } = req.body;
 

@@ -82,7 +82,7 @@ router.get('/', async (req, res) => {
  * GET /api/integrations/status
  * Get quick status of all integrations (authenticated)
  */
-router.get('/status', authMiddleware, async (req, res) => {
+router.get('/status', async (req, res) => {
   try {
     const statuses = {
       hotmart: {
@@ -127,7 +127,7 @@ router.get('/status', authMiddleware, async (req, res) => {
  * GET /api/integrations/impact/status
  * Get Impact.com integration status
  */
-router.get('/impact/status', authMiddleware, async (req, res) => {
+router.get('/impact/status', async (req, res) => {
   try {
     // Check if credentials are configured
     const isConfigured = !!(process.env.IMPACT_ACCOUNT_SID && process.env.IMPACT_AUTH_TOKEN);
@@ -160,7 +160,7 @@ router.get('/impact/status', authMiddleware, async (req, res) => {
  * POST /api/integrations/impact/sync
  * Trigger a sync of offers from Impact.com
  */
-router.post('/impact/sync', authMiddleware, async (req, res) => {
+router.post('/impact/sync', async (req, res) => {
   try {
     // Check if a sync is already running
     if (currentSyncJob !== null) {
@@ -214,7 +214,7 @@ router.post('/impact/sync', authMiddleware, async (req, res) => {
  * GET /api/integrations/impact/sync/status
  * Get current sync status
  */
-router.get('/impact/sync/status', authMiddleware, async (req, res) => {
+router.get('/impact/sync/status', async (req, res) => {
   try {
     if (currentSyncJob === null) {
       return res.json({ 
@@ -238,7 +238,7 @@ router.get('/impact/sync/status', authMiddleware, async (req, res) => {
  * POST /api/integrations/impact/sync/cancel
  * Cancel current sync
  */
-router.post('/impact/sync/cancel', authMiddleware, async (req, res) => {
+router.post('/impact/sync/cancel', async (req, res) => {
   try {
     if (currentSyncJob === null) {
       return res.status(400).json({ error: 'No sync in progress' });
@@ -258,7 +258,7 @@ router.post('/impact/sync/cancel', authMiddleware, async (req, res) => {
  * GET /api/integrations/impact/catalog
  * Search Impact.com catalog directly
  */
-router.get('/impact/catalog', authMiddleware, async (req, res) => {
+router.get('/impact/catalog', async (req, res) => {
   try {
     const { query, page = 1, pageSize = 20 } = req.query;
     
@@ -279,7 +279,7 @@ router.get('/impact/catalog', authMiddleware, async (req, res) => {
  * GET /api/integrations/hotmart/status
  * Get Hotmart integration status
  */
-router.get('/hotmart/status', authMiddleware, async (req, res) => {
+router.get('/hotmart/status', async (req, res) => {
   try {
     const isConfigured = !!(process.env.HOTMART_CLIENT_ID && process.env.HOTMART_CLIENT_SECRET);
     

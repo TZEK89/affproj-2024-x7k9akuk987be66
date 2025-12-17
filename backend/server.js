@@ -50,6 +50,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// Add mock user for personal use (no auth required)
+app.use(mockUser);
+
 // Request logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -58,6 +61,7 @@ app.use((req, res, next) => {
 
 // Import middleware
 const authMiddleware = require('./middleware/auth');
+const mockUser = require('./middleware/mock-user');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -138,23 +142,23 @@ app.use('/api/auth', authRoutes);
 // Admin routes (some public, some protected)
 app.use('/api/admin', adminRoutes);
 
-// Protected routes (auth required)
-app.use('/api/products', authMiddleware, productsRoutes);
-app.use('/api/landing-pages', authMiddleware, landingPagesRoutes);
-app.use('/api/campaigns', authMiddleware, campaignsRoutes);
-app.use('/api/subscribers', authMiddleware, subscribersRoutes);
-app.use('/api/conversions', authMiddleware, conversionsRoutes);
-app.use('/api/analytics', analyticsRoutes); // Auth temporarily disabled for demo
-app.use('/api/hotmart', authMiddleware, hotmartRoutes);
-app.use('/api/products', authMiddleware, productImagesRoutes);
+// All routes public for personal use (no auth required)
+app.use('/api/products', productsRoutes);
+app.use('/api/landing-pages', landingPagesRoutes);
+app.use('/api/campaigns', campaignsRoutes);
+app.use('/api/subscribers', subscribersRoutes);
+app.use('/api/conversions', conversionsRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/hotmart', hotmartRoutes);
+app.use('/api/product-images', productImagesRoutes);
 
 // Public routes that have mixed auth (some endpoints public, some protected)
 app.use('/api/integrations', integrationsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/agents', agentsRoutes);
 app.use('/api/agents', agentsExecuteRoutes);
-app.use('/api/browser', authMiddleware, browserController);
-app.use('/api/agents', authMiddleware, agenticRoutes);
+app.use('/api/browser', browserController);
+app.use('/api/agentic', agenticRoutes);
 app.use('/api/brightdata', brightdataRoutes);
 app.use('/api/hotmart-browser', hotmartBrowserRoutes);
 app.use('/api/command-center', commandCenterRoutes);
