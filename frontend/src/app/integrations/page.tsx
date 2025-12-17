@@ -431,7 +431,7 @@ export default function IntegrationsPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Integrations</h1>
           <p className="mt-2 text-gray-600">
-            Connect your affiliate networks, ad platforms, and AI services
+            Connect your affiliate networks, ad platforms, and AI services (v2.0)
           </p>
         </div>
 
