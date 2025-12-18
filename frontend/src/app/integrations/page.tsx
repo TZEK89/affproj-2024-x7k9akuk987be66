@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import Button from '@/components/Button';
 import StatusBadge from '@/components/StatusBadge';
 import { integrationsApi } from '@/lib/api-service';
+import ConnectModal from '@/components/ConnectModal';
 
 interface Integration {
   id: string;
@@ -34,6 +35,8 @@ export default function IntegrationsPage() {
   const [syncStats, setSyncStats] = useState<SyncStats | null>(null);
   const [syncMessage, setSyncMessage] = useState<string>('');
   const [connectingId, setConnectingId] = useState<string | null>(null);
+  const [connectModalOpen, setConnectModalOpen] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<{id: string, name: string} | null>(null);
 
   // Load Impact.com status on mount
   useEffect(() => {
@@ -307,8 +310,17 @@ export default function IntegrationsPage() {
   const handleConnect = async (integrationId: string) => {
     setConnectingId(integrationId);
     
-    // Special handling for Hotmart - use autonomous scraper
+    // For Hotmart, use the new two-phase connect flow
     if (integrationId === 'hotmart') {
+      const integration = integrations.find(i => i.id === integrationId);
+      setSelectedPlatform({ id: integrationId, name: integration?.name || 'Hotmart' });
+      setConnectModalOpen(true);
+      setConnectingId(null);
+      return;
+    }
+    
+    // Legacy autonomous scraper (will be deprecated)
+    if (integrationId === 'hotmart_legacy') {
       try {
         setSyncMessage('🔄 Connecting to Hotmart and starting autonomous scrape...');
         
@@ -578,6 +590,21 @@ export default function IntegrationsPage() {
           </div>
         ))}
       </main>
+
+      {/* Connect Modal */}
+      {selectedPlatform && (
+        <ConnectModal
+          isOpen={connectModalOpen}
+          onClose={() => setConnectModalOpen(false)}
+          platform={selectedPlatform.id}
+          platformName={selectedPlatform.name}
+          onSuccess={() => {
+            loadImpactStatus();
+            setSyncMessage(`✅ Successfully connected to ${selectedPlatform.name}!`);
+            setTimeout(() => setSyncMessage(''), 5000);
+          }}
+        />
+      )}
     </div>
   );
 }

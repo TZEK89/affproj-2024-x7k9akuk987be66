@@ -94,6 +94,8 @@ const manusBrowserRoutes = require('./routes/manus-browser');
 const llmConfigRoutes = require('./routes/llm-config');
 const agenticScraperRoutes = require('./routes/agentic-scraper');
 const hotmartAutonomousRoutes = require('./routes/hotmart-autonomous');
+const integrationConnectRoutes = require('./routes/integration-connect');
+const persistentScraperRoutes = require('./routes/persistent-scraper');
 
 // Import job system for agent missions
 let jobSystem = null;
@@ -177,6 +179,8 @@ app.use('/api/manus-browser', manusBrowserRoutes);
 app.use('/api/llm-config', llmConfigRoutes);
 app.use('/api/agentic-scraper', agenticScraperRoutes);
 app.use('/api/hotmart-autonomous', hotmartAutonomousRoutes);
+app.use('/api/integrations', integrationConnectRoutes);
+app.use('/api/scraper', persistentScraperRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
