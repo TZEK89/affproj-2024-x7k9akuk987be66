@@ -2,98 +2,133 @@
 
 This folder contains comprehensive documentation for the AI Affiliate Marketing System project.
 
-## Core Documentation
+---
 
-### 1. [PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md)
-**Purpose**: Provides the high-level vision, current state, and immediate priorities for the project.  
-**Audience**: New developers joining the project, project managers.  
-**Key Sections**:
-- The 5 AI Cores vision
-- Current system architecture
-- Integration status (Hotmart, Impact.com, AI providers)
-- Next steps and priorities
+## 🚀 Quick Start
 
-### 2. [TECHNICAL_SPECIFICATIONS.md](./TECHNICAL_SPECIFICATIONS.md)
-**Purpose**: Detailed technical reference for the entire system.  
-**Audience**: Developers, DevOps engineers.  
-**Key Sections**:
-- Complete database schema (15 tables)
-- All API endpoints with specifications
-- Environment variables configuration
-- Deployment setup (Railway, Vercel)
-- Webhook specifications
-- Agent system requirements
+**New to the project?** Start here:
 
-### 3. [AI_AGENTS_ARCHITECTURE.md](./AI_AGENTS_ARCHITECTURE.md)
-**Purpose**: Detailed design for the agentic Offer Research AI system.  
-**Audience**: AI/ML engineers, backend developers.  
-**Key Sections**:
-- System overview (Orchestration, Agent, Execution layers)
-- Agent workflow with step-by-step examples
-- Technology stack recommendations
-- Implementation roadmap
+1. **[OPERATIONAL_MANUAL.md](./OPERATIONAL_MANUAL.md)** - Complete operational guide covering all 8 cores
+2. **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Deployment setup and infrastructure
+3. **[CURRENT_CONTEXT.md](./CURRENT_CONTEXT.md)** - Current state and active work
+4. **[FEATURE_STATUS.md](./FEATURE_STATUS.md)** - Status of all 8 cores
 
-### 4. [MCP_SERVERS_CONFIG.json](./MCP_SERVERS_CONFIG.json)
-**Purpose**: Configuration file for Model Context Protocol servers.  
-**Audience**: Developers using Claude or other AI assistants.  
-**Includes**:
-- GitHub MCP server configuration
-- Railway MCP server configuration
-- Vercel MCP server configuration
-- Setup instructions and usage examples
+**For context recall:** Use the prompt in **[CONTEXT_RECALL_PROMPT.txt](./CONTEXT_RECALL_PROMPT.txt)**
 
-### 5. [HOTMART_INTEGRATION_FINAL_SUMMARY.md](./HOTMART_INTEGRATION_FINAL_SUMMARY.md)
-**Purpose**: Complete status report on the Hotmart integration.  
-**Audience**: Project stakeholders, developers.  
-**Key Sections**:
-- What's been completed (98%)
-- Pending items (final migration)
-- Webhook flow documentation
-- Testing results
+---
 
-## Quick Start for New Developers
+## 📚 Core Documentation
 
-1. **Read First**: [PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md) - Get the big picture
-2. **Then Read**: [TECHNICAL_SPECIFICATIONS.md](./TECHNICAL_SPECIFICATIONS.md) - Understand the system
-3. **For AI Work**: [AI_AGENTS_ARCHITECTURE.md](./AI_AGENTS_ARCHITECTURE.md) - Learn the agent system
-4. **Setup MCP**: [MCP_SERVERS_CONFIG.json](./MCP_SERVERS_CONFIG.json) - Configure your tools
+### System Overview
 
-## Current Project Status
+-   **[OPERATIONAL_MANUAL.md](./OPERATIONAL_MANUAL.md)** - Complete guide to all 8 cores, workflows, profitability, and automation timeline
+-   **[AI_OPERATING_SYSTEM_STRATEGY.md](./AI_OPERATING_SYSTEM_STRATEGY.md)** - Vision, MCP-first architecture, integrations, and revenue projections
+-   **[8_CORE_BREAKDOWN.md](./8_CORE_BREAKDOWN.md)** - Detailed breakdown of each core with action items
 
-- **Phase**: Core #1 (Offer Research AI) - Ready to implement
-- **Hotmart Integration**: 98% complete (pending final migration)
-- **Database**: 15 tables, 11 migrations
-- **Deployments**: Live on Railway (backend) and Vercel (frontend)
+### Current State
 
-## Repository Structure
+-   **[CURRENT_CONTEXT.md](./CURRENT_CONTEXT.md)** - Active development context with what's working, blocked, missing, and next steps
+-   **[FEATURE_STATUS.md](./FEATURE_STATUS.md)** - Current status of all 8 cores, infrastructure, deployment, blockers, and priorities
+-   **[CURRENT_STATE_ANALYSIS.md](./CURRENT_STATE_ANALYSIS.md)** - Deep analysis of deployment setup and project state
+
+### Deployment & Infrastructure
+
+-   **[DEPLOYMENT.md](./DEPLOYMENT.md)** - **Single source of truth** for deployment setup, URLs, environment variables, and troubleshooting
+-   **[TECHNICAL_SPECIFICATIONS.md](./TECHNICAL_SPECIFICATIONS.md)** - Complete database schema, API endpoints, and technical details
+
+### Development Guides
+
+-   **[HOTMART_FOCUSED_PLAN.md](./HOTMART_FOCUSED_PLAN.md)** - Focused plan to complete Hotmart integration
+-   **[AUTONOMOUS_SCRAPER_SUMMARY.md](./AUTONOMOUS_SCRAPER_SUMMARY.md)** - Autonomous headless browser scraping system
+-   **[OFFER_INTELLIGENCE_ENGINE_PLAN.md](./OFFER_INTELLIGENCE_ENGINE_PLAN.md)** - Development plan for Core #1
+
+### Code Quality & Security
+
+-   **[DEPENDENCY_GUIDE.md](./DEPENDENCY_GUIDE.md)** - Complete guide to all dependencies (backend and frontend)
+-   **[SECURITY_AUDIT_SOP.md](./SECURITY_AUDIT_SOP.md)** - Standard operating procedure for security audits
+-   **[DEVELOPMENT_COST_ANALYSIS.md](./DEVELOPMENT_COST_ANALYSIS.md)** - Cost analysis of building with human developers vs AI
+
+### Context Management
+
+-   **[CONTEXT_MANAGEMENT_SOP.md](./CONTEXT_MANAGEMENT_SOP.md)** - **NEW:** SOP for maintaining context across sessions
+-   **[CONTEXT_RECALL_PROMPT.txt](./CONTEXT_RECALL_PROMPT.txt)** - **NEW:** Prompt to recall context at session start
+-   **[session-summaries/](./session-summaries/)** - **NEW:** Dated session summaries for audit trail
+
+---
+
+## 🎯 Current Project Status
+
+**Last Updated:** December 18, 2025
+
+### What's Working ✅
+
+-   **Autonomous Hotmart Scraper:** Headless browser system for scraping marketplace
+-   **Connect Button:** Frontend dashboard triggers autonomous scraper
+-   **Code Quality:** Professionally audited and fixed (zero critical bugs)
+-   **Dependency Security:** Zero known vulnerabilities
+-   **Weekly Security Audits:** Automatically scheduled
+
+### What's Next 🚧
+
+-   **Test Hotmart Integration:** Verify end-to-end scraping flow
+-   **Implement AI Profitability Scoring:** Core #1 completion
+-   **Add ClickBank, ShareASale, CJ:** Replicate Hotmart pattern
+-   **Content Generation:** Core #2 development
+-   **Ad Platform Integration:** Core #3 development
+
+### Core Status
+
+| Core | Name | Status | Progress |
+| :--- | :--- | :--- | :--- |
+| **#1** | Offer Intelligence Engine | 🚧 In Progress | 40% |
+| **#2** | Content Generation Machine | ⏸️ Not Started | 30% |
+| **#3** | Campaign Launcher (Ad Hub) | ⏸️ Not Started | 20% |
+| **#4** | A/B Testing & Optimization | ⏸️ Not Started | 15% |
+| **#5** | Landing Page Factory | ⏸️ Not Started | 10% |
+| **#6** | Performance Analytics | 🚧 In Progress | 35% |
+| **#7** | Email Automation | ⏸️ Not Started | 0% |
+| **#8** | Compliance Guardian | ⏸️ Not Started | 0% |
+
+---
+
+## 🏗️ Repository Structure
 
 ```
 affiliate-marketing-system/
 ├── backend/
 │   ├── routes/          # API endpoints
-│   ├── services/        # Business logic (AIService, HotmartService, etc.)
-│   ├── database/        # Migrations and DB utilities
+│   ├── services/        # Business logic (scraping, AI, encryption)
+│   ├── config/          # Configuration (Supabase, logger)
+│   ├── middleware/      # Validation, mock user
 │   └── server.js        # Entry point
 ├── frontend/
 │   ├── src/
 │   │   ├── app/         # Next.js pages
-│   │   └── components/  # React components
+│   │   ├── components/  # React components
+│   │   └── lib/         # API client, utilities
 │   └── package.json
 ├── docs/                # This folder
+│   ├── session-summaries/  # Dated session summaries
+│   └── archive/         # Historical documents
 └── README.md
 ```
 
-## Important Links
+---
 
-- **Frontend**: https://affiliate-marketing-system-frontend.vercel.app
-- **Backend**: https://affiliate-backend-production-df21.up.railway.app
-- **GitHub**: https://github.com/TZEK89/affiliate-marketing-system
+## 🌐 Important Links
 
-## Contact & Support
+-   **Frontend:** https://affiliate-frontend-production.up.railway.app
+-   **Backend:** https://affiliate-backend-production-df21.up.railway.app/api
+-   **GitHub:** https://github.com/TZEK89/affiliate-marketing-system
+-   **Railway Project:** `chic-truth` (ID: `96bfb253-0353-4b4e-84be-0963767f04af`)
+
+---
+
+## 📞 Contact & Support
 
 For questions or issues, create a GitHub issue in the repository.
 
 ---
 
-**Last Updated**: December 6, 2025  
-**Maintained By**: Project Team
+**Last Updated:** December 18, 2025  
+**Maintained By:** Manus AI
