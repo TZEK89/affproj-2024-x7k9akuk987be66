@@ -1,0 +1,27 @@
+{
+  "name": "affiliate-local-connector",
+  "version": "1.0.0",
+  "description": "Local Playwright connector for authenticating to affiliate platforms",
+  "main": "connector.js",
+  "bin": {
+    "affiliate-connect": "./connector.js"
+  },
+  "scripts": {
+    "connect": "node connector.js"
+  },
+  "keywords": [
+    "playwright",
+    "automation",
+    "affiliate",
+    "connector"
+  ],
+  "author": "Manus AI",
+  "license": "MIT",
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1",
+    "prompts": "^2.4.2"
+  }
+}

@@ -64,23 +64,29 @@ export default function IntegrationsPage() {
         setupUrl: 'https://impact.com',
       };
 
-      // Load Hotmart status
-      const hotmartStatus = await integrationsApi.getHotmartStatus().catch(() => ({
-        isConnected: false,
-        lastSyncTime: null,
-        totalProducts: 0
-      }));
+      // Load Hotmart status from local-connect
+      const hotmartStatusResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/local-connect/hotmart/status`).catch(() => null);
+      const hotmartStatus = hotmartStatusResponse ? await hotmartStatusResponse.json() : {
+        connected: false,
+        status: 'not_connected',
+        cookieCount: 0
+      };
 
       const hotmartIntegration: Integration = {
         id: 'hotmart',
         name: 'Hotmart',
         category: 'affiliate',
-        description: 'Digital products marketplace with instant approval',
-        status: hotmartStatus.isConnected ? 'connected' : 'disconnected',
+        description: `Digital products marketplace with instant approval ${hotmartStatus.cookieCount > 0 ? `(${hotmartStatus.cookieCount} cookies saved)` : ''}`,
+        status: hotmartStatus.connected ? 'connected' : (hotmartStatus.needsReconnect ? 'error' : 'disconnected'),
         logo: '🔥',
-        lastSync: hotmartStatus.lastSyncTime,
-        totalProducts: hotmartStatus.totalProducts,
-        features: ['Instant approval', 'Digital products', 'AI-generated images', 'Global marketplace'],
+        lastSync: hotmartStatus.lastUsedAt,
+        totalProducts: 0, // Will be populated after scraping
+        features: [
+          'Instant approval',
+          'Digital products',
+          hotmartStatus.connected ? `Session expires: ${new Date(hotmartStatus.expiresAt).toLocaleDateString()}` : 'Not connected',
+          hotmartStatus.needsReconnect ? '⚠️ Needs reconnect' : 'Ready to scrape'
+        ],
         setupUrl: 'https://hotmart.com',
       };
 

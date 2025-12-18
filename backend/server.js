@@ -96,6 +96,8 @@ const agenticScraperRoutes = require('./routes/agentic-scraper');
 const hotmartAutonomousRoutes = require('./routes/hotmart-autonomous');
 const integrationConnectRoutes = require('./routes/integration-connect');
 const persistentScraperRoutes = require('./routes/persistent-scraper');
+const localConnectRoutes = require('./routes/local-connect');
+const headlessScraperRoutes = require('./routes/headless-scraper');
 
 // Import job system for agent missions
 let jobSystem = null;
@@ -181,6 +183,8 @@ app.use('/api/agentic-scraper', agenticScraperRoutes);
 app.use('/api/hotmart-autonomous', hotmartAutonomousRoutes);
 app.use('/api/integrations', integrationConnectRoutes);
 app.use('/api/scraper', persistentScraperRoutes);
+app.use('/api/local-connect', localConnectRoutes);
+app.use('/api/headless-scraper', headlessScraperRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
