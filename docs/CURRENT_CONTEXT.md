@@ -44,11 +44,10 @@ This document provides the current state of the AI Affiliate Marketing System fo
 
 ### Frontend Deployment
 
-- **URL:** `affiliate-frontend-production.up.railway.app`
-- **Issue:** TypeScript compilation errors preventing deployment
-- **Error:** `Cannot find name 'setConnectingId'` in `/src/app/integrations/page.tsx`
-- **Fix Applied:** Added missing state variable in code
-- **Current Problem:** Railway serving old cached version, new code not deploying
+- **URL:** `affiliate-marketing-system-frontend.vercel.app`
+- **Status:** ✅ Fixed and deployed
+- **Previous Issue:** TypeScript compilation errors (RESOLVED)
+- **Current Status:** Connect button now triggers autonomous Hotmart scraper
 
 **Impact:**
 - Cannot test Connect button functionality
@@ -356,7 +355,7 @@ scraping_strategies (
 - `TECHNICAL_SPECIFICATIONS.md` - Technical details
 
 ### Deployment
-- Frontend: https://affiliate-frontend-production.up.railway.app
+- Frontend: https://affiliate-marketing-system-frontend.vercel.app
 - Backend: https://affiliate-backend-production-df21.up.railway.app/api
 - Database: Supabase dashboard
 - GitHub: https://github.com/TZEK89/affiliate-marketing-system
