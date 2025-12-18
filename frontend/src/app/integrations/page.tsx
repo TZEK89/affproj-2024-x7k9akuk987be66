@@ -306,22 +306,41 @@ export default function IntegrationsPage() {
 
   const handleConnect = async (integrationId: string) => {
     setConnectingId(integrationId);
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/browser-session/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platformId: integrationId })
-      });
-      const data = await response.json();
-      if (data.success) {
-        const viewerUrl = `${window.location.origin}/browser-session/${data.sessionId}`;
-        window.open(viewerUrl, '_blank', 'width=1200,height=800');
-        alert(`🌐 Browser Session Started!\n\nSession ID: ${data.sessionId}\n\nNext Steps:\n1. A new window has opened\n2. Message Manus: "Connect to ${integrationId}"\n3. Watch the browser window\n4. Complete login + 2FA\n5. Manus captures your session`);
-      } else {
-        alert(`❌ Failed: ${data.error}`);
+    
+    // Special handling for Hotmart - use autonomous scraper
+    if (integrationId === 'hotmart') {
+      try {
+        setSyncMessage('🔄 Connecting to Hotmart and starting autonomous scrape...');
+        
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/hotmart-autonomous/scrape`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setSyncMessage(`✅ Success! Scraped ${data.totalScraped} products from ${data.totalPages} pages`);
+          await loadImpactStatus(); // Reload to show updated status
+          
+          // Clear message after 10 seconds
+          setTimeout(() => setSyncMessage(''), 10000);
+        } else if (data.needs2FA) {
+          setSyncMessage('⚠️ 2FA required. Please contact support.');
+        } else {
+          setSyncMessage(`❌ Error: ${data.error || 'Connection failed'}`);
+        }
+      } catch (error: any) {
+        setSyncMessage(`❌ Error: ${error.message}`);
+      } finally {
+        setConnectingId(null);
       }
-    } catch (error: any) {
-      alert(`❌ Error: ${error.message}`);
+      return;
+    }
+    
+    // For other platforms, show coming soon message
+    try {
+      alert(`🚧 ${integrationId.toUpperCase()} Integration\n\nThis integration is coming soon!\n\nCurrently available:\n✅ Hotmart (autonomous scraping)\n\nNext up:\n⏳ ClickBank\n⏳ ShareASale\n⏳ CJ Affiliate`);
     } finally {
       setConnectingId(null);
     }
