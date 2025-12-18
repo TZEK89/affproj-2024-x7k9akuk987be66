@@ -44,7 +44,7 @@ This document provides the current state of the AI Affiliate Marketing System fo
 
 ### Frontend Deployment
 
-- **URL:** `affiliate-marketing-system-frontend.vercel.app`
+- **URL:** `affiliate-frontend-production.up.railway.app`
 - **Status:** ✅ Fixed and deployed
 - **Previous Issue:** TypeScript compilation errors (RESOLVED)
 - **Current Status:** Connect button now triggers autonomous Hotmart scraper
@@ -355,7 +355,7 @@ scraping_strategies (
 - `TECHNICAL_SPECIFICATIONS.md` - Technical details
 
 ### Deployment
-- Frontend: https://affiliate-marketing-system-frontend.vercel.app
+- Frontend: https://affiliate-frontend-production.up.railway.app
 - Backend: https://affiliate-backend-production-df21.up.railway.app/api
 - Database: Supabase dashboard
 - GitHub: https://github.com/TZEK89/affiliate-marketing-system

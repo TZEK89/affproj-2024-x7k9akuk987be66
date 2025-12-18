@@ -16,8 +16,8 @@ This document is the single source of truth for all deployment-related informati
 
 ### Frontend
 
-**Platform:** Vercel  
-**URL:** https://affiliate-marketing-system-frontend.vercel.app  
+**Platform:** Railway  
+**URL:** https://affiliate-frontend-production.up.railway.app  
 **Repository:** `TZEK89/affiliate-marketing-system`  
 **Branch:** `main`  
 **Auto-Deploy:** ✅ Enabled  
@@ -25,7 +25,7 @@ This document is the single source of truth for all deployment-related informati
 **Output Directory:** `.next`  
 **Framework:** Next.js 14
 
-**Environment Variables (Vercel):**
+**Environment Variables (Railway - Frontend Service):**
 
 ```bash
 NEXT_PUBLIC_API_URL=https://affiliate-backend-production-df21.up.railway.app/api
@@ -34,9 +34,9 @@ NEXT_PUBLIC_API_URL=https://affiliate-backend-production-df21.up.railway.app/api
 **Deployment Process:**
 
 1.  Push to `main` branch on GitHub
-2.  Vercel automatically detects the push
-3.  Vercel runs `pnpm install` and `pnpm build`
-4.  Vercel deploys to production (typically 2-3 minutes)
+2.  Railway automatically detects the push
+3.  Railway runs Nixpacks build
+4.  Railway deploys to production (typically 2-3 minutes)
 
 ### Backend
 
