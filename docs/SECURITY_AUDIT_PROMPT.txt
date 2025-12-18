@@ -1,0 +1,38 @@
+SECURITY AUDIT REQUEST
+
+Please conduct a comprehensive security audit of all project dependencies following the Standard Operating Procedure (SOP) for Dependency Security Audits.
+
+Execute all phases:
+
+Phase 1: Intelligence Gathering & Reconnaissance
+- Research recent security vulnerabilities for our tech stack (React, Next.js, npm ecosystem)
+- Identify high-impact CVEs from the last 30-60 days
+- Check for known malicious packages and supply chain attacks
+
+Phase 2: Automated Vulnerability Scanning
+- Run pnpm audit on backend (251 dependencies)
+- Run pnpm audit on frontend (449 dependencies)
+- Generate JSON reports for analysis
+
+Phase 3: Manual Verification & Analysis
+- Verify critical framework versions (Next.js, React, React-DOM)
+- Analyze audit reports for real-world impact
+- Check for known malicious packages in our dependency tree
+
+Phase 4: Remediation & Patching
+- Apply automated fixes with pnpm audit --fix
+- Manually update packages if needed
+- Use pnpm.overrides for sub-dependency vulnerabilities
+- Verify all fixes and confirm zero vulnerabilities
+
+Phase 5: Reporting & Documentation
+- Create comprehensive security audit report
+- Commit all changes to GitHub
+- Deliver report with findings and actions taken
+
+PROJECT CONTEXT:
+- Backend: Node.js/Express with 251 dependencies
+- Frontend: Next.js 14 + React 18 with 449 dependencies
+- Repository: https://github.com/TZEK89/affiliate-marketing-system
+
+Please be thorough, research actively, and ensure our code is secure. Thank you!
