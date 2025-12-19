@@ -7,7 +7,8 @@
     "affiliate-connect": "./connector.js"
   },
   "scripts": {
-    "connect": "node connector.js"
+    "connect": "node connector.js",
+    "connect-v2": "node connector-v2.js"
   },
   "keywords": [
     "playwright",
