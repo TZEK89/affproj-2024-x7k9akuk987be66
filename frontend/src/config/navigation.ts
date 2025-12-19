@@ -3,6 +3,7 @@ import {
   Brain,
   Sparkles,
   Target,
+  Plug,
   Image,
   FileText,
   Megaphone,
@@ -32,6 +33,7 @@ export const navigationHubs: NavHub[] = [
     name: 'Intelligence',
     icon: Brain,
     items: [
+      { name: 'Platform Connections', href: '/integrations', icon: Plug },
       { name: 'AI Agents', href: '/missions', icon: Brain },
       { name: 'Discovery', href: '/discovery', icon: Sparkles },
       { name: 'Offers', href: '/offers', icon: Target },
@@ -67,7 +69,6 @@ export const navigationHubs: NavHub[] = [
     icon: Settings,
     items: [
       { name: 'Automation', href: '/automation', icon: Zap },
-      { name: 'Integrations', href: '/integrations', icon: Network },
       { name: 'Settings', href: '/settings', icon: Settings },
     ],
   },

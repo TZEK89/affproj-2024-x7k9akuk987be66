@@ -57,7 +57,7 @@ export default function DiscoveryPage() {
   if (error) {
     return (
       <div>
-        <Header title="Discovery Workbench" subtitle="AI-discovered products ready for promotion" />
+        <Header title="Discovery Workbench" subtitle="Core #1: Offer Intelligence Engine - AI-discovered products ready for promotion" />
         <div className="p-6">
           <div className="bg-error-50 border border-error-200 rounded-lg p-4 text-error-800">
             Error loading products: {error}
@@ -71,7 +71,7 @@ export default function DiscoveryPage() {
     <div>
       <Header
         title="Discovery Workbench"
-        subtitle="AI-discovered products ready for promotion"
+        subtitle="Core #1: Offer Intelligence Engine - AI-discovered products ready for promotion"
       />
 
       <div className="p-6 space-y-6">

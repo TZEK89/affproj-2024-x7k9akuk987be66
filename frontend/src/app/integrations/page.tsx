@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Check, X, RefreshCw, Settings, ExternalLink, AlertCircle, Download, CheckCircle } from 'lucide-react';
+import { Check, X, RefreshCw, Settings, ExternalLink, AlertCircle, Download, CheckCircle, Zap, TrendingUp, Shield, Clock } from 'lucide-react';
 import Header from '@/components/Header';
 import Button from '@/components/Button';
 import StatusBadge from '@/components/StatusBadge';
@@ -29,8 +29,21 @@ interface SyncStats {
   errors: any[];
 }
 
+interface HotmartStatus {
+  connected: boolean;
+  status: string;
+  cookieCount: number;
+  expiresAt?: string;
+  lastUsedAt?: string;
+  needsReconnect?: boolean;
+  userAgent?: string;
+  locale?: string;
+  timezone?: string;
+}
+
 export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [hotmartStatus, setHotmartStatus] = useState<HotmartStatus | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStats, setSyncStats] = useState<SyncStats | null>(null);
   const [syncMessage, setSyncMessage] = useState<string>('');
@@ -38,134 +51,46 @@ export default function IntegrationsPage() {
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<{id: string, name: string} | null>(null);
 
-  // Load Impact.com status on mount
+  // Load platform statuses on mount
   useEffect(() => {
-    loadImpactStatus();
+    loadPlatformStatuses();
   }, []);
 
-  const loadImpactStatus = async () => {
+  const loadPlatformStatuses = async () => {
     try {
-      const status = await integrationsApi.getImpactStatus().catch(() => ({
+      // Load Impact.com status
+      const impactStatus = await integrationsApi.getImpactStatus().catch(() => ({
         isConnected: false,
         lastSyncTime: null,
         totalProducts: 0
       }));
-      
-      const impactIntegration: Integration = {
-        id: 'impact',
-        name: 'Impact.com',
-        category: 'affiliate',
-        description: 'Enterprise affiliate marketing platform with best-in-class API',
-        status: status.isConnected ? 'connected' : 'disconnected',
-        logo: '⭐',
-        lastSync: status.lastSyncTime,
-        totalProducts: status.totalProducts,
-        features: ['Offer sync', 'Real-time tracking', 'GraphQL API', 'Webhook support'],
-        setupUrl: 'https://impact.com',
-      };
 
       // Load Hotmart status from local-connect
       const hotmartStatusResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/local-connect/hotmart/status`).catch(() => null);
-      const hotmartStatus = hotmartStatusResponse ? await hotmartStatusResponse.json() : {
+      const hotmartData: HotmartStatus = hotmartStatusResponse ? await hotmartStatusResponse.json() : {
         connected: false,
         status: 'not_connected',
         cookieCount: 0
       };
+      
+      setHotmartStatus(hotmartData);
 
-      const hotmartIntegration: Integration = {
-        id: 'hotmart',
-        name: 'Hotmart',
-        category: 'affiliate',
-        description: `Digital products marketplace with instant approval ${hotmartStatus.cookieCount > 0 ? `(${hotmartStatus.cookieCount} cookies saved)` : ''}`,
-        status: hotmartStatus.connected ? 'connected' : (hotmartStatus.needsReconnect ? 'error' : 'disconnected'),
-        logo: '🔥',
-        lastSync: hotmartStatus.lastUsedAt,
-        totalProducts: 0, // Will be populated after scraping
-        features: [
-          'Instant approval',
-          'Digital products',
-          hotmartStatus.connected ? `Session expires: ${new Date(hotmartStatus.expiresAt).toLocaleDateString()}` : 'Not connected',
-          hotmartStatus.needsReconnect ? '⚠️ Needs reconnect' : 'Ready to scrape'
-        ],
-        setupUrl: 'https://hotmart.com',
-      };
-
-      setIntegrations([
-        impactIntegration,
-        hotmartIntegration,
-        {
-          id: 'cj',
-          name: 'CJ Affiliate',
-          category: 'affiliate',
-          description: 'Commission Junction - Global affiliate marketing network',
-          status: 'disconnected',
-          logo: '💼',
-          features: ['Offer sync', 'Commission tracking', 'Deep linking'],
-          setupUrl: 'https://cj.com',
-        },
-        {
-          id: 'shareasale',
-          name: 'ShareASale',
-          category: 'affiliate',
-          description: 'Affiliate marketing network with 25+ years of experience',
-          status: 'disconnected',
-          logo: '🤝',
-          features: ['Offer sync', 'Real-time tracking', 'Payment processing'],
-          setupUrl: 'https://shareasale.com',
-        },
-        {
-          id: 'meta',
-          name: 'Meta Ads',
-          category: 'ads',
-          description: 'Facebook and Instagram advertising platform',
-          status: 'disconnected',
-          logo: '📘',
-          features: ['Campaign management', 'Audience targeting', 'Performance analytics'],
-          setupUrl: 'https://business.facebook.com',
-        },
-        {
-          id: 'google-ads',
-          name: 'Google Ads',
-          category: 'ads',
-          description: 'Google advertising platform',
-          status: 'disconnected',
-          logo: '🔍',
-          features: ['Search ads', 'Display ads', 'Shopping campaigns'],
-          setupUrl: 'https://ads.google.com',
-        },
-        {
-          id: 'dalle',
-          name: 'DALL-E 3',
-          category: 'ai',
-          description: 'AI image generation for ad creatives',
-          status: 'disconnected',
-          logo: '🎨',
-          features: ['Image generation', 'Ad creative creation', 'Custom styles'],
-          setupUrl: 'https://openai.com',
-        },
-        {
-          id: 'claude',
-          name: 'Claude AI',
-          category: 'ai',
-          description: 'AI copywriting for landing pages and ads',
-          status: 'disconnected',
-          logo: '✍️',
-          features: ['Copywriting', 'Content generation', 'A/B test variants'],
-          setupUrl: 'https://anthropic.com',
-        },
-      ]);
-    } catch (error) {
-      console.error('Error loading integrations status:', error);
-      // Set default integrations even if API fails
-      setIntegrations([
+      const integrationsList: Integration[] = [
         {
           id: 'hotmart',
           name: 'Hotmart',
           category: 'affiliate',
-          description: 'Digital products marketplace with instant approval',
-          status: 'disconnected',
+          description: `Digital products marketplace with instant approval ${hotmartData.cookieCount > 0 ? `(${hotmartData.cookieCount} cookies saved)` : ''}`,
+          status: hotmartData.connected ? 'connected' : (hotmartData.needsReconnect ? 'error' : 'disconnected'),
           logo: '🔥',
-          features: ['Instant approval', 'Digital products', 'AI-generated images', 'Global marketplace'],
+          lastSync: hotmartData.lastUsedAt,
+          totalProducts: 0, // Will be populated after scraping
+          features: [
+            'Instant approval',
+            'Digital products',
+            hotmartData.connected ? `Session expires: ${hotmartData.expiresAt ? new Date(hotmartData.expiresAt).toLocaleDateString() : 'Unknown'}` : 'Not connected',
+            hotmartData.needsReconnect ? '⚠️ Needs reconnect' : 'Ready to scrape'
+          ],
           setupUrl: 'https://hotmart.com',
         },
         {
@@ -173,8 +98,10 @@ export default function IntegrationsPage() {
           name: 'Impact.com',
           category: 'affiliate',
           description: 'Enterprise affiliate marketing platform with best-in-class API',
-          status: 'disconnected',
+          status: impactStatus.isConnected ? 'connected' : 'disconnected',
           logo: '⭐',
+          lastSync: impactStatus.lastSyncTime,
+          totalProducts: impactStatus.totalProducts,
           features: ['Offer sync', 'Real-time tracking', 'GraphQL API', 'Webhook support'],
           setupUrl: 'https://impact.com',
         },
@@ -218,37 +145,53 @@ export default function IntegrationsPage() {
           features: ['Search ads', 'Display ads', 'Shopping campaigns'],
           setupUrl: 'https://ads.google.com',
         },
-        {
-          id: 'manus',
-          name: 'Manus AI',
-          category: 'ai',
-          description: 'Multi-AI platform with image generation, content creation, and chat',
-          status: 'disconnected',
-          logo: '🤖',
-          features: ['Image generation', 'Content creation', 'Data analysis', 'AI chat assistant'],
-          setupUrl: 'https://manus.im',
-        },
-        {
-          id: 'dalle',
-          name: 'DALL-E 3',
-          category: 'ai',
-          description: 'AI image generation for ad creatives',
-          status: 'disconnected',
-          logo: '🎨',
-          features: ['Image generation', 'Ad creative creation', 'Custom styles'],
-          setupUrl: 'https://openai.com',
-        },
-      ]);
+      ];
+
+      setIntegrations(integrationsList);
+    } catch (error) {
+      console.error('Error loading integrations status:', error);
+    }
+  };
+
+  const handleConnectHotmart = () => {
+    // Open local connector instructions
+    window.open('/platform-connections', '_blank');
+  };
+
+  const handleSyncHotmart = async () => {
+    setIsSyncing(true);
+    setSyncMessage('Starting Hotmart scrape...');
+    
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/local-connect/hotmart/scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to start scrape');
+      }
+
+      const result = await response.json();
+      setSyncMessage(`Scrape completed! Found ${result.productsScraped || 0} products.`);
+      
+      // Reload status
+      await loadPlatformStatuses();
+      
+      setTimeout(() => setSyncMessage(''), 5000);
+    } catch (error: any) {
+      setSyncMessage(`Error: ${error.message}`);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
   const handleSyncImpact = async () => {
     setIsSyncing(true);
-    setSyncMessage('Starting sync...');
+    setSyncMessage('Starting Impact.com sync...');
     setSyncStats(null);
 
     try {
-      // Start the sync
       await integrationsApi.syncImpact({
         fullSync: true,
         inStockOnly: true,
@@ -257,7 +200,6 @@ export default function IntegrationsPage() {
 
       setSyncMessage('Sync in progress... This may take a few minutes.');
 
-      // Poll for sync status
       const pollInterval = setInterval(async () => {
         try {
           const status = await integrationsApi.getImpactSyncStatus();
@@ -267,10 +209,7 @@ export default function IntegrationsPage() {
             setIsSyncing(false);
             setSyncMessage('Sync completed successfully!');
             
-            // Reload status to get updated product count
-            await loadImpactStatus();
-            
-            // Clear message after 5 seconds
+            await loadPlatformStatuses();
             setTimeout(() => setSyncMessage(''), 5000);
           } else if (status.stats) {
             setSyncStats(status.stats);
@@ -280,7 +219,7 @@ export default function IntegrationsPage() {
           setIsSyncing(false);
           setSyncMessage('Error checking sync status');
         }
-      }, 2000); // Poll every 2 seconds
+      }, 2000);
 
     } catch (error: any) {
       setIsSyncing(false);
@@ -288,326 +227,298 @@ export default function IntegrationsPage() {
     }
   };
 
-  const handleSyncHotmart = async () => {
-    setIsSyncing(true);
-    setSyncMessage('Starting Hotmart sync with AI image generation...');
-    setSyncStats(null);
-
-    try {      const result = await integrationsApi.syncHotmart({
-        generateImages: true,
-        batchSize: 50
-      });
-
-      setIsSyncing(false);
-      if (result.success) {
-        setSyncMessage(result.message || 'Sync completed successfully!');
-        await loadImpactStatus(); // Reload to update Hotmart status
-      } else {
-        setSyncMessage(`Error: ${result.error}`);
-      }
-
-      setTimeout(() => setSyncMessage(''), 5000);
-    } catch (error: any) {
-      setIsSyncing(false);
-      setSyncMessage(`Error: ${error.message}`);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'connected':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'error':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  const handleConnect = async (integrationId: string) => {
-    setConnectingId(integrationId);
-    
-    // For Hotmart, use the new two-phase connect flow
-    if (integrationId === 'hotmart') {
-      const integration = integrations.find(i => i.id === integrationId);
-      setSelectedPlatform({ id: integrationId, name: integration?.name || 'Hotmart' });
-      setConnectModalOpen(true);
-      setConnectingId(null);
-      return;
-    }
-    
-    // Legacy autonomous scraper (will be deprecated)
-    if (integrationId === 'hotmart_legacy') {
-      try {
-        setSyncMessage('🔄 Connecting to Hotmart and starting autonomous scrape...');
-        
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/hotmart-autonomous/scrape`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          setSyncMessage(`✅ Success! Scraped ${data.totalScraped} products from ${data.totalPages} pages`);
-          await loadImpactStatus(); // Reload to show updated status
-          
-          // Clear message after 10 seconds
-          setTimeout(() => setSyncMessage(''), 10000);
-        } else if (data.needs2FA) {
-          setSyncMessage('⚠️ 2FA required. Please contact support.');
-        } else {
-          setSyncMessage(`❌ Error: ${data.error || 'Connection failed'}`);
-        }
-      } catch (error: any) {
-        setSyncMessage(`❌ Error: ${error.message}`);
-      } finally {
-        setConnectingId(null);
-      }
-      return;
-    }
-    
-    // For other platforms, show coming soon message
-    try {
-      alert(`🚧 ${integrationId.toUpperCase()} Integration\n\nThis integration is coming soon!\n\nCurrently available:\n✅ Hotmart (autonomous scraping)\n\nNext up:\n⏳ ClickBank\n⏳ ShareASale\n⏳ CJ Affiliate`);
-    } finally {
-      setConnectingId(null);
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'connected':
+        return <CheckCircle className="h-5 w-5 text-green-600" />;
+      case 'error':
+        return <AlertCircle className="h-5 w-5 text-yellow-600" />;
+      default:
+        return <X className="h-5 w-5 text-gray-400" />;
     }
   };
 
-  const startConnectionPolling = (connectionId: string, platformId: string) => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manus-connect/status/${connectionId}`);
-        const data = await response.json();
-
-        if (data.status === 'connected') {
-          clearInterval(pollInterval);
-          alert(`✅ Successfully connected to ${platformId.toUpperCase()}!\n\nYou can now run scraping missions.`);
-          await loadImpactStatus();
-        } else if (data.status === 'error' || data.status === 'failed') {
-          clearInterval(pollInterval);
-          alert(`❌ Connection failed. Please try again.`);
-        }
-      } catch (error) {
-        // Continue polling on error
-      }
-    }, 5000); // Poll every 5 seconds
-
-    // Stop polling after 10 minutes
-    setTimeout(() => {
-      clearInterval(pollInterval);
-    }, 600000);
-  };
-
-  const handleVerifyConnection = async (integrationId: string) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/platform-connections/status/${integrationId}`);
-      const data = await response.json();
-
-      if (data.status === 'connected') {
-        alert(`✅ Successfully connected to ${integrationId.toUpperCase()}!`);
-        await loadImpactStatus();
-      } else if (data.status === 'pending') {
-        alert(`⏳ Connection still pending. Please complete the login process and try again.`);
-      } else {
-        alert(`❌ Not connected. Please click "Connect" and log in first.`);
-      }
-    } catch (error: any) {
-      alert(`❌ Error: ${error.message}`);
-    }
-  };
-
-  const handleTestConnection = async (integrationId: string) => {
-    if (integrationId === 'impact') {
-      try {
-        const result = await integrationsApi.testImpactConnection();
-        if (result.success) {
-          alert(`✅ Successfully connected to Impact.com!\n\nFound ${result.catalogCount} catalogs.`);
-          await loadImpactStatus();
-        }
-      } catch (error: any) {
-        alert(`❌ Failed to connect to Impact.com:\n\n${error.message}`);
-      }
-    } else if (integrationId === 'hotmart') {
-      try {
-        const result = await integrationsApi.testHotmartConnection();
-        if (result.success) {
-          alert(`✅ Successfully connected to Hotmart!\n\nAuthentication successful.`);
-          await loadImpactStatus();
-        }
-      } catch (error: any) {
-        alert(`❌ Failed to connect to Hotmart:\n\n${error.message}`);
-      }
-    } else {
-      // Use the new OAuth flow for other platforms
-      await handleConnect(integrationId);
-    }
-  };
-
-  const categoryLabels = {
-    affiliate: 'Affiliate Networks',
-    ads: 'Ad Platforms',
-    ai: 'AI Services',
-    tools: 'Tools & Services',
-  };
-
-  const groupedIntegrations = integrations.reduce((acc, integration) => {
-    if (!acc[integration.category]) {
-      acc[integration.category] = [];
-    }
-    acc[integration.category].push(integration);
-    return acc;
-  }, {} as Record<string, Integration[]>);
+  const affiliateIntegrations = integrations.filter(i => i.category === 'affiliate');
+  const adsIntegrations = integrations.filter(i => i.category === 'ads');
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header title="Integrations" />
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Integrations</h1>
-          <p className="mt-2 text-gray-600">
-            Connect your affiliate networks, ad platforms, and AI services (v2.0)
-          </p>
-        </div>
+    <div>
+      <Header
+        title="Platform Connections"
+        subtitle="Core #1: Offer Intelligence Engine - Connect affiliate platforms to source high-converting offers"
+      />
 
+      <div className="p-6 space-y-6">
+        {/* Sync Status Alert */}
         {syncMessage && (
-          <div className={`mb-6 p-4 rounded-lg ${
-            syncMessage.includes('Error') ? 'bg-red-50 text-red-800' : 'bg-blue-50 text-blue-800'
-          }`}>
-            <div className="flex items-center">
+          <div className={`rounded-lg p-4 ${syncMessage.includes('Error') ? 'bg-red-50 border border-red-200' : 'bg-blue-50 border border-blue-200'}`}>
+            <div className="flex items-center gap-3">
               {isSyncing ? (
-                <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-              ) : syncMessage.includes('Error') ? (
-                <AlertCircle className="w-5 h-5 mr-2" />
+                <RefreshCw className="h-5 w-5 animate-spin text-blue-600" />
               ) : (
-                <CheckCircle className="w-5 h-5 mr-2" />
+                <CheckCircle className="h-5 w-5 text-green-600" />
               )}
-              <span>{syncMessage}</span>
-            </div>
-            
-            {syncStats && (
-              <div className="mt-3 text-sm">
-                <div>Catalogs processed: {syncStats.catalogsProcessed}</div>
-                <div>Products added: {syncStats.productsAdded}</div>
-                <div>Products updated: {syncStats.productsUpdated}</div>
-                {syncStats.errors.length > 0 && (
-                  <div className="text-red-600">Errors: {syncStats.errors.length}</div>
+              <div className="flex-1">
+                <p className={syncMessage.includes('Error') ? 'text-red-800' : 'text-blue-800'}>
+                  {syncMessage}
+                </p>
+                {syncStats && (
+                  <div className="mt-2 text-sm text-blue-700">
+                    <p>Processed: {syncStats.catalogsProcessed} catalogs</p>
+                    <p>Added: {syncStats.productsAdded} | Updated: {syncStats.productsUpdated} | Skipped: {syncStats.productsSkipped}</p>
+                  </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
         )}
 
-        {Object.entries(groupedIntegrations).map(([category, items]) => (
-          <div key={category} className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              {categoryLabels[category as keyof typeof categoryLabels]}
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {items.map((integration) => (
-                <div
-                  key={integration.id}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center">
-                      <div className="text-4xl mr-3">{integration.logo}</div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{integration.name}</h3>
-                        <StatusBadge status={integration.status} />
-                      </div>
-                    </div>
+        {/* Hotmart Featured Card */}
+        {hotmartStatus && (
+          <div className="rounded-lg bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200 p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-4">
+                <div className="text-5xl">🔥</div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-2xl font-bold text-gray-900">Hotmart</h3>
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(hotmartStatus.connected ? 'connected' : hotmartStatus.needsReconnect ? 'error' : 'disconnected')}`}>
+                      {getStatusIcon(hotmartStatus.connected ? 'connected' : hotmartStatus.needsReconnect ? 'error' : 'disconnected')}
+                      {hotmartStatus.connected ? 'Connected' : hotmartStatus.needsReconnect ? 'Needs Reconnect' : 'Not Connected'}
+                    </span>
                   </div>
-
-                  <p className="text-sm text-gray-600 mb-4">
-                    {integration.description}
+                  <p className="text-gray-700 mb-4">
+                    Digital products marketplace with instant approval. Local Connect system enabled for secure authentication.
                   </p>
 
-                  {integration.totalProducts !== undefined && (
-                    <div className="mb-4 p-3 bg-gray-50 rounded">
-                      <div className="text-sm text-gray-600">Total Products</div>
-                      <div className="text-2xl font-bold text-gray-900">
-                        {integration.totalProducts.toLocaleString()}
+                  {/* Connection Details */}
+                  {hotmartStatus.connected && (
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Shield className="h-4 w-4 text-green-600" />
+                        <span className="text-gray-700">
+                          <strong>Cookies:</strong> {hotmartStatus.cookieCount} saved
+                        </span>
                       </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className="h-4 w-4 text-blue-600" />
+                        <span className="text-gray-700">
+                          <strong>Expires:</strong> {hotmartStatus.expiresAt ? new Date(hotmartStatus.expiresAt).toLocaleDateString() : 'Unknown'}
+                        </span>
+                      </div>
+                      {hotmartStatus.userAgent && (
+                        <div className="flex items-center gap-2 text-sm col-span-2">
+                          <Zap className="h-4 w-4 text-purple-600" />
+                          <span className="text-gray-700">
+                            <strong>Fingerprint:</strong> {hotmartStatus.locale} • {hotmartStatus.timezone}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {integration.lastSync && (
-                    <div className="text-xs text-gray-500 mb-4">
-                      Last synced: {new Date(integration.lastSync).toLocaleString()}
-                    </div>
-                  )}
-
-                  <div className="mb-4">
-                    <div className="text-xs font-medium text-gray-500 mb-2">Features:</div>
-                    <ul className="text-sm text-gray-600 space-y-1">
-                      {integration.features.map((feature, index) => (
-                        <li key={index} className="flex items-center">
-                          <Check className="w-4 h-4 text-green-500 mr-2" />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="flex gap-2">
-                    {integration.status === 'connected' && (integration.id === 'impact' || integration.id === 'hotmart') ? (
-                      <Button
-                        onClick={integration.id === 'impact' ? handleSyncImpact : handleSyncHotmart}
-                        disabled={isSyncing}
-                        className="flex-1"
-                      >
-                        {isSyncing ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                            Syncing...
-                          </>
-                        ) : (
-                          <>
-                            <Download className="w-4 h-4 mr-2" />
-                            Sync Offers
-                          </>
-                        )}
-                      </Button>
-                    ) : integration.status === 'disconnected' ? (
-                      <Button
-                        onClick={() => handleTestConnection(integration.id)}
-                        variant="secondary"
-                        className="flex-1"
-                      >
-                        <Settings className="w-4 h-4 mr-2" />
-                        Connect
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={() => handleTestConnection(integration.id)}
-                        variant="secondary"
-                        className="flex-1"
-                      >
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        Test
-                      </Button>
-                    )}
-                    
-                    {integration.setupUrl && (
-                      <Button
-                        onClick={() => window.open(integration.setupUrl, '_blank')}
-                        variant="secondary"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
-                    )}
+                  {/* Features */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-white text-gray-700 border border-gray-200">
+                      ✓ Instant Approval
+                    </span>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-white text-gray-700 border border-gray-200">
+                      ✓ Digital Products
+                    </span>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-white text-gray-700 border border-gray-200">
+                      ✓ Session Fingerprinting
+                    </span>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-white text-gray-700 border border-gray-200">
+                      ✓ Deterministic Verification
+                    </span>
                   </div>
                 </div>
-              ))}
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col gap-2">
+                {!hotmartStatus.connected ? (
+                  <Button onClick={handleConnectHotmart} variant="primary">
+                    <Zap className="h-4 w-4 mr-2" />
+                    Connect Now
+                  </Button>
+                ) : (
+                  <>
+                    <Button onClick={handleSyncHotmart} disabled={isSyncing} variant="primary">
+                      <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                      Scrape Offers
+                    </Button>
+                    <Button onClick={handleConnectHotmart} variant="secondary">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Reconnect
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        ))}
-      </main>
+        )}
+
+        {/* Affiliate Platforms */}
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Affiliate Networks</h2>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {affiliateIntegrations.filter(i => i.id !== 'hotmart').map((integration) => (
+              <div
+                key={integration.id}
+                className="rounded-lg bg-white border border-gray-200 p-6 hover:border-primary-300 transition-colors"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start gap-3">
+                    <div className="text-3xl">{integration.logo}</div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{integration.name}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{integration.description}</p>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(integration.status)}`}>
+                    {getStatusIcon(integration.status)}
+                    {integration.status === 'connected' ? 'Connected' : 'Not Connected'}
+                  </span>
+                </div>
+
+                {/* Stats */}
+                {integration.status === 'connected' && (
+                  <div className="flex gap-4 mb-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Products:</span>
+                      <span className="ml-2 font-semibold text-gray-900">{integration.totalProducts || 0}</span>
+                    </div>
+                    {integration.lastSync && (
+                      <div>
+                        <span className="text-gray-500">Last Sync:</span>
+                        <span className="ml-2 font-semibold text-gray-900">
+                          {new Date(integration.lastSync).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Features */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {integration.features.map((feature, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-700 border border-gray-200"
+                    >
+                      {feature}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  {integration.status === 'connected' ? (
+                    <>
+                      <Button
+                        onClick={() => integration.id === 'impact' && handleSyncImpact()}
+                        disabled={isSyncing}
+                        variant="secondary"
+                        size="sm"
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                        Sync
+                      </Button>
+                      <Button variant="secondary" size="sm">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Settings
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      onClick={() => {
+                        setSelectedPlatform({ id: integration.id, name: integration.name });
+                        setConnectModalOpen(true);
+                      }}
+                      variant="primary"
+                      size="sm"
+                    >
+                      Connect
+                    </Button>
+                  )}
+                  {integration.setupUrl && (
+                    <Button variant="secondary" size="sm">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Visit
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Ad Platforms */}
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Advertising Platforms</h2>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {adsIntegrations.map((integration) => (
+              <div
+                key={integration.id}
+                className="rounded-lg bg-white border border-gray-200 p-6 hover:border-primary-300 transition-colors"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start gap-3">
+                    <div className="text-3xl">{integration.logo}</div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{integration.name}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{integration.description}</p>
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(integration.status)}`}>
+                    {getStatusIcon(integration.status)}
+                    Coming Soon
+                  </span>
+                </div>
+
+                {/* Features */}
+                <div className="flex flex-wrap gap-2">
+                  {integration.features.map((feature, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-700 border border-gray-200"
+                    >
+                      {feature}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Connect Modal */}
-      {selectedPlatform && (
+      {connectModalOpen && selectedPlatform && (
         <ConnectModal
           isOpen={connectModalOpen}
-          onClose={() => setConnectModalOpen(false)}
           platform={selectedPlatform.id}
           platformName={selectedPlatform.name}
+          onClose={() => {
+            setConnectModalOpen(false);
+            setSelectedPlatform(null);
+          }}
           onSuccess={() => {
-            loadImpactStatus();
-            setSyncMessage(`✅ Successfully connected to ${selectedPlatform.name}!`);
-            setTimeout(() => setSyncMessage(''), 5000);
+            setConnectModalOpen(false);
+            setSelectedPlatform(null);
+            loadPlatformStatuses();
           }}
         />
       )}

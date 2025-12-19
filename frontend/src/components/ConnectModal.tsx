@@ -197,7 +197,7 @@ export default function ConnectModal({ isOpen, onClose, platform, platformName, 
           {status === 'waiting' && (
             <>
               <Button
-                variant="outline"
+                variant="secondary"
                 onClick={onClose}
                 className="flex-1"
               >
