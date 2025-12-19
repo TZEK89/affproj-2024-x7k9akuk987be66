@@ -21,7 +21,13 @@ export default function ConnectModal({ isOpen, onClose, platform, platformName, 
 
   useEffect(() => {
     if (isOpen) {
-      startConnect();
+      // For Hotmart, show local connect instructions instead of starting browser automation
+      if (platform === 'hotmart') {
+        setStatus('waiting');
+        setMessage('Follow the instructions below to connect using Local Connect');
+      } else {
+        startConnect();
+      }
     } else {
       // Reset state when modal closes
       setStatus('idle');
@@ -30,7 +36,7 @@ export default function ConnectModal({ isOpen, onClose, platform, platformName, 
       setCurrentUrl('');
       setIsLoggedIn(false);
     }
-  }, [isOpen]);
+  }, [isOpen, platform]);
 
   useEffect(() => {
     // Poll for status while waiting
@@ -160,14 +166,37 @@ export default function ConnectModal({ isOpen, onClose, platform, platformName, 
           {status === 'waiting' && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
               <h3 className="font-semibold text-blue-900">Instructions:</h3>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
-                <li>A browser window has opened</li>
-                <li>Complete the login process (including 2FA if needed)</li>
-                <li>Wait until you see the dashboard or marketplace</li>
-                <li>Click the button below to save your session</li>
-              </ol>
+              {platform === 'hotmart' ? (
+                <div className="space-y-3">
+                  <div className="bg-white border border-blue-200 rounded p-3">
+                    <p className="text-sm font-semibold text-blue-900 mb-2">🔧 Local Connect Method</p>
+                    <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
+                      <li>Open terminal on your <strong>local machine</strong></li>
+                      <li>Navigate to: <code className="bg-gray-100 px-1 py-0.5 rounded">tools/local-connector</code></li>
+                      <li>Run: <code className="bg-gray-100 px-1 py-0.5 rounded">npm run connect-v2</code></li>
+                      <li>Browser will open automatically</li>
+                      <li>Login to Hotmart with your credentials</li>
+                      <li>Complete 2FA authentication if prompted</li>
+                      <li>Session will be automatically saved to backend</li>
+                      <li>Return here and refresh to see connection status</li>
+                    </ol>
+                  </div>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                    <p className="text-xs text-yellow-800">
+                      <strong>⚠️ Important:</strong> The Local Connect tool must run on your local machine (not in production) to capture your authenticated session securely.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
+                  <li>A browser window has opened</li>
+                  <li>Complete the login process (including 2FA if needed)</li>
+                  <li>Wait until you see the dashboard or marketplace</li>
+                  <li>Click the button below to save your session</li>
+                </ol>
+              )}
 
-              {currentUrl && (
+              {currentUrl && platform !== 'hotmart' && (
                 <div className="mt-3 pt-3 border-t border-blue-200">
                   <p className="text-xs text-blue-700">
                     <strong>Current URL:</strong> {currentUrl}
@@ -196,20 +225,31 @@ export default function ConnectModal({ isOpen, onClose, platform, platformName, 
         <div className="flex gap-3 p-6 border-t">
           {status === 'waiting' && (
             <>
-              <Button
-                variant="secondary"
-                onClick={onClose}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={completeConnect}
-                className="flex-1"
-                disabled={!isLoggedIn}
-              >
-                I Finished Login
-              </Button>
+              {platform === 'hotmart' ? (
+                <Button
+                  onClick={onClose}
+                  className="w-full"
+                >
+                  Close
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={onClose}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={completeConnect}
+                    className="flex-1"
+                    disabled={!isLoggedIn}
+                  >
+                    I Finished Login
+                  </Button>
+                </>
+              )}
             </>
           )}
 

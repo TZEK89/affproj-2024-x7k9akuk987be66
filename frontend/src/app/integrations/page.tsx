@@ -154,8 +154,9 @@ export default function IntegrationsPage() {
   };
 
   const handleConnectHotmart = () => {
-    // Open local connector instructions
-    window.open('/platform-connections', '_blank');
+    // Open connection modal with Hotmart-specific instructions
+    setSelectedPlatform({ id: 'hotmart', name: 'Hotmart' });
+    setConnectModalOpen(true);
   };
 
   const handleSyncHotmart = async () => {
