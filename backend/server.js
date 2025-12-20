@@ -98,6 +98,7 @@ const integrationConnectRoutes = require('./routes/integration-connect');
 const persistentScraperRoutes = require('./routes/persistent-scraper');
 const localConnectRoutes = require('./routes/local-connect');
 const headlessScraperRoutes = require('./routes/headless-scraper');
+const claudeSupervisorRoutes = require('./routes/claude-supervisor');
 
 // Import job system for agent missions
 let jobSystem = null;
@@ -185,6 +186,7 @@ app.use('/api/integrations', integrationConnectRoutes);
 app.use('/api/scraper', persistentScraperRoutes);
 app.use('/api/local-connect', localConnectRoutes);
 app.use('/api/headless-scraper', headlessScraperRoutes);
+app.use('/api/claude', claudeSupervisorRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -207,7 +209,8 @@ app.get('/', (req, res) => {
       ai: '/api/ai',
       agents: '/api/agents',
       brightdata: '/api/brightdata',
-      hotmart_browser: '/api/hotmart-browser'
+      hotmart_browser: '/api/hotmart-browser',
+      claude_supervisor: '/api/claude'
     }
   });
 });
