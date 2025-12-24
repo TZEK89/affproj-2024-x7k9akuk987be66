@@ -1,6 +1,6 @@
 # Current Context - AI Affiliate Marketing System
 
-**Last Updated:** December 19, 2025  
+**Last Updated:** December 24, 2025  
 **Author:** Manus AI  
 **Status:** Active Development
 
@@ -8,11 +8,30 @@
 
 ## Current State Summary
 
-The AI Affiliate Marketing System is in active development with Core #1 (Offer Intelligence Engine) at 65% completion. Both frontend and backend are deployed and operational on Railway.
+The AI Affiliate Marketing System is in active development with Core #1 (Offer Intelligence Engine) at 65% completion. Both frontend and backend are deployed and operational on Railway. **NEW:** Self-hosted MCP infrastructure is now operational on the user's Windows PC, providing centralized access to AI tools from any machine.
 
 ---
 
 ## What's Working ✅
+
+### Self-Hosted MCP Infrastructure (NEW - Dec 24, 2025)
+
+- **Host:** Windows PC (64GB RAM, 1TB NVMe) with WSL2
+- **Status:** ✅ Fully operational
+- **Access:** SSH via localhost:2222 (local) or Cloudflare Tunnel (remote)
+
+**Running MCP Servers:**
+- **Manus Bridge:** Send tasks to Manus AI from Claude Desktop
+- **Perplexity:** Real-time AI-powered web research
+- **Railway:** Deployment management (local)
+- **Affiliate Browser:** Custom affiliate system (local)
+- **BrightData:** Web scraping (local)
+
+**Infrastructure Components:**
+- Docker Compose with Cloudflare Tunnel
+- SSH Server (linuxserver/openssh-server)
+- Secure SSH key authentication
+- Auto-restart on failure
 
 ### Frontend (Fully Deployed)
 
@@ -58,34 +77,78 @@ The AI Affiliate Marketing System is in active development with Core #1 (Offer I
 
 ---
 
-## Recent Work (December 19, 2025)
+## Recent Work (December 24, 2025)
 
-### 1. Codebase Archive
-- Created complete system archive (2.2 MB, 402 files)
-- Added CODEBASE_README.md with setup instructions
-- Prepared for ChatGPT analysis
+### Self-Hosted MCP Infrastructure Setup
 
-### 2. Dashboard Reorganization
-- Moved "Platform Connections" from System to Intelligence Hub
-- Added Core #1 branding to all Intelligence pages
-- Updated navigation structure
-- **Commit:** 175ff6c
+1. **Docker Infrastructure Created**
+   - Docker Compose with Cloudflare Tunnel and SSH server
+   - Secure SSH key authentication (ed25519)
+   - Volume mounts for MCP servers
 
-### 3. Railway Deployment Fixes
-- Fixed package-lock.json sync issues
-- Added nixpacks.toml for explicit build config
-- Set SESSION_ENCRYPTION_KEY environment variable
-- Set API_KEY_ENCRYPTION_KEY environment variable
-- Updated service workspace configurations
-- **Commit:** 6f80534
+2. **Manus Bridge MCP Installed**
+   - Custom MCP server for Manus AI task delegation
+   - 4 tools: send_task, check_status, list_tasks, cancel_task
+   - API key configured and working
 
-### 4. Integration Flow Fixes
-- Fixed handleConnectHotmart() to open modal instead of old page
-- Added Hotmart-specific Local Connect instructions to modal
-- Replaced old /platform-connections page with redirect
-- Added 8-step connection guide with code snippets
-- Added warning message about local execution
-- **Commit:** b053e2d (3 files, 88 insertions, 340 deletions)
+3. **Perplexity MCP Installed**
+   - 5 tools: search, pro_search, reasoning, deep_research, chat
+   - Real-time web research capabilities
+   - API key configured and working
+
+4. **Claude Desktop Configured**
+   - Both MCPs accessible via WSL SSH
+   - Tested and verified working
+   - Can be used from any machine with SSH key
+
+5. **Documentation Created**
+   - Session Report: `docs/session-summaries/2025-12-24_MCP_Infrastructure_Session.md`
+   - Remote Access Guide: `docs/MCP_REMOTE_ACCESS_GUIDE.md`
+   - Integrations Report: `docs/MCP_INTEGRATIONS_REPORT.md`
+
+---
+
+## MCP Infrastructure Details
+
+### Host Machine Requirements
+- Windows PC must be powered on
+- Docker Desktop running
+- WSL2 available
+- Internet connection for Cloudflare Tunnel
+
+### Starting the Infrastructure
+```bash
+cd ~/mcp-infrastructure
+docker-compose up -d
+docker-compose ps  # Verify running
+```
+
+### Claude Desktop Configuration (Local)
+```json
+{
+  "mcpServers": {
+    "manus-bridge": {
+      "command": "wsl",
+      "args": [
+        "ssh", "-i", "/home/mk/.ssh/mcp_key", "-p", "2222",
+        "linuxserver.io@localhost",
+        "cd /mcp-servers/manus-bridge && MANUS_API_KEY=<key> node index.js"
+      ]
+    },
+    "perplexity": {
+      "command": "wsl",
+      "args": [
+        "ssh", "-i", "/home/mk/.ssh/mcp_key", "-p", "2222",
+        "linuxserver.io@localhost",
+        "cd /mcp-servers/perplexity && PERPLEXITY_API_KEY=<key> node index.js"
+      ]
+    }
+  }
+}
+```
+
+### Remote Access (From Other Machines)
+See `docs/MCP_REMOTE_ACCESS_GUIDE.md` for complete instructions.
 
 ---
 
@@ -139,6 +202,7 @@ The AI Affiliate Marketing System is in active development with Core #1 (Offer I
 - **Queue:** Redis + BullMQ
 - **Deployment:** Railway (both services)
 - **Encryption:** AES-256-GCM for sessions and API keys
+- **MCP Infrastructure:** Docker + Cloudflare Tunnel + SSH (NEW)
 
 ### Key Technologies
 
@@ -148,118 +212,8 @@ The AI Affiliate Marketing System is in active development with Core #1 (Offer I
 - **Vercel MCP:** Deployment automation
 - **Railway MCP:** Deployment management
 - **OpenAI GPT-4o:** AI agents and chat
-
----
-
-## Security Implementation
-
-### Encryption
-
-All sensitive data is encrypted using AES-256-GCM:
-
-```javascript
-const crypto = require('crypto');
-const algorithm = 'aes-256-gcm';
-const key = Buffer.from(process.env.SESSION_ENCRYPTION_KEY, 'hex');
-```
-
-**Encrypted Data:**
-- Platform connection sessions (cookies, localStorage)
-- LLM API keys
-- Browser fingerprints
-
-**Session Validity:** 30 days
-
----
-
-## Environment Variables
-
-### Backend (Railway)
-
-```
-DATABASE_URL=postgresql://...
-REDIS_URL=redis://...
-SESSION_ENCRYPTION_KEY=64-character-hex-string
-API_KEY_ENCRYPTION_KEY=64-character-hex-string
-OPENAI_API_KEY=sk-...
-```
-
-### Frontend (Railway)
-
-```
-NEXT_PUBLIC_API_URL=https://affiliate-backend-production-df21.up.railway.app/api
-```
-
----
-
-## Database Schema (Key Tables)
-
-### Platform Connections
-```sql
-platform_connections (
-  id, user_id, platform_id, platform_name,
-  encrypted_session, session_iv, session_tag,
-  is_active, expires_at, created_at, updated_at
-)
-```
-
-### Browser Sessions
-```sql
-browser_sessions (
-  id, user_id, platform_id, status,
-  fingerprint, metadata,
-  latest_screenshot, created_at, updated_at
-)
-```
-
-### Discovered Products
-```sql
-discovered_products (
-  id, user_id, platform, product_name, product_url,
-  commission_rate, price, category, description,
-  scraped_at, created_at
-)
-```
-
-### LLM Configurations
-```sql
-llm_configurations (
-  id, user_id, provider, model_name,
-  encrypted_api_key, api_key_iv, api_key_tag,
-  is_default, created_at, updated_at
-)
-```
-
----
-
-## Workflow: Hotmart Local Connect
-
-1. User clicks "Connect Now" on Hotmart card
-2. Modal opens with Local Connect instructions
-3. User opens terminal on local machine
-4. User navigates to: `tools/local-connector`
-5. User runs: `npm run connect-v2`
-6. Browser opens automatically with Hotmart login
-7. User authenticates (including 2FA if enabled)
-8. Local Connector captures session (cookies + fingerprint)
-9. Session uploaded to backend via `/api/local-connect/hotmart/upload`
-10. Backend encrypts and stores session
-11. User returns to dashboard and refreshes
-12. Dashboard shows "Connected" status
-13. "Scrape Offers" button becomes available
-
----
-
-## Workflow: Agentic Scraping
-
-1. User creates scraping mission via `/api/agentic-scraper/mission`
-2. Backend checks for existing successful strategy
-3. If strategy exists: Backend executes autonomously
-4. If no strategy: Backend generates instructions for Manus
-5. Manus executes mission using MCP tools (Firecrawl, Playwright)
-6. Manus reports results back to backend
-7. Backend stores successful strategy for future use
-8. If strategy fails: Falls back to Manus for manual execution
+- **Manus Bridge MCP:** Task delegation to Manus AI (NEW)
+- **Perplexity MCP:** Real-time web research (NEW)
 
 ---
 
@@ -267,71 +221,50 @@ llm_configurations (
 
 ### Immediate (Next Session)
 
-1. **Test Hotmart Local Connect**
+1. **Set Up Remote Access**
+   - Configure Cloudflare Access for SSH
+   - Install cloudflared on other machines
+   - Test remote MCP access
+
+2. **Add More MCP Servers**
+   - Memory MCP (persistent context)
+   - Filesystem MCP (file operations)
+   - GitHub MCP (repository management)
+
+3. **Test Hotmart Local Connect**
    - Run Local Connector on local machine
    - Authenticate with Hotmart
    - Verify session upload
-   - Check dashboard shows "Connected"
-
-2. **Test Hotmart Scraping**
-   - Click "Scrape Offers" button
-   - Verify products appear in Offers page
-   - Check product data quality
-
-3. **Implement Other Platforms**
-   - Add Impact.com connection
-   - Add CJ Affiliate connection
-   - Add ShareASale connection
 
 ### Short-Term (This Week)
 
-4. **Add Real-time Updates**
-   - Implement status polling (every 5 seconds)
-   - Add WebSocket for instant updates
-   - Show connection progress
-
-5. **Implement AI Profitability Scoring**
+4. **Implement AI Profitability Scoring**
    - Design scoring algorithm
    - Integrate with LLM
    - Test on existing products
 
-6. **Add Content Generation**
+5. **Add Content Generation**
    - Create prompt templates
    - Integrate LLM for ad copy
    - Build content generation UI
 
 ### Medium-Term (Next 2 Weeks)
 
-7. **Start Ad Platform Integration**
+6. **Start Ad Platform Integration**
    - Research Facebook Ads API
    - Create developer account
    - Implement basic campaign creation
 
-8. **Build Landing Page Factory**
+7. **Build Landing Page Factory**
    - Create template library
    - Implement page generation
    - Integrate Vercel deployment
-
-9. **Add Email Automation**
-   - Choose email service provider
-   - Implement list management
-   - Create nurture sequences
 
 ---
 
 ## Known Issues
 
 **None currently.** All critical issues resolved in latest session.
-
----
-
-## Questions for Next Session
-
-1. Should we implement multi-user authentication or keep personal use only?
-2. Which ad platform should we integrate first (Facebook vs Google)?
-3. Should we build landing page templates or use a page builder?
-4. What email service provider should we use (SendGrid, Mailgun, Resend)?
-5. Should we implement the MCP-first architecture now or later?
 
 ---
 
@@ -342,16 +275,20 @@ llm_configurations (
 - `FEATURE_STATUS.md` - Current status of all features
 - `AI_OPERATING_SYSTEM_STRATEGY.md` - Vision and roadmap
 - `TECHNICAL_SPECIFICATIONS.md` - Technical details
-- `docs/session-summaries/2025-12-19_Session_Summary.md` - Latest session
+- `MCP_REMOTE_ACCESS_GUIDE.md` - Remote access setup (NEW)
+- `MCP_INTEGRATIONS_REPORT.md` - Potential integrations (NEW)
+- `docs/session-summaries/2025-12-24_MCP_Infrastructure_Session.md` - Latest session
 
 ### Deployment
 - Frontend: https://affiliate-marketing-dashboard-production.up.railway.app
 - Backend: https://affiliate-backend-production-df21.up.railway.app/api
 - Database: Supabase dashboard
 - GitHub: https://github.com/TZEK89/affiliate-marketing-system
+- MCP Infrastructure: localhost:2222 (SSH) or mcp.mkaxonet.com (Cloudflare)
 
 ### Recent Commits
-- `b053e2d` - Integration flow fixes (latest)
+- `<pending>` - MCP Infrastructure documentation (latest)
+- `b053e2d` - Integration flow fixes
 - `6f80534` - Railway deployment fixes
 - `175ff6c` - Dashboard reorganization
 
