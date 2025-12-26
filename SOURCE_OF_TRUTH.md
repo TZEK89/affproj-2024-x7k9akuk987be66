@@ -1094,78 +1094,107 @@ While less common for communication *between* cores, direct function or method c
 By combining these patterns, the system achieves a balance of decoupling, responsiveness, and reliability, allowing the 8 cores to function as a cohesive and scalable whole.
 
 
+
 ---
 
-## Part 10: Model Context Protocol (MCP) Server Setup
+## Part 10: Custom AI MCP Servers & Docker Bridge
 
-The Model Context Protocol (MCP) is the system's universal integration layer, allowing AI agents to discover and use external tools and services. This section details the setup for key MCP servers, including the core Manus integration, and provides a template for adding new servers.
+This section details the setup and operation of the custom, high-value Model Context Protocol (MCP) servers that provide the system's core AI capabilities. These servers are designed to be run within a containerized environment managed by the **Manus Bridge**.
 
-### 10.1. The Manus MCP Server Integration
+### 10.1. The Manus Bridge (Docker Gateway)
 
-The Manus MCP server is a core component that provides the system's agents with access to advanced AI capabilities, including the `manus-browser-controller` and specialized LLM functions.
+The Manus Bridge is a critical piece of infrastructure that provides a stable, secure, and isolated environment for all custom MCP servers. It is implemented using Docker and Docker Compose.
+
+#### Purpose
+*   **Isolation:** Provides a clean, reproducible environment for each MCP server.
+*   **Networking:** Manages internal networking, allowing the core backend to communicate with the MCP servers via stable, internal hostnames (e.g., `http://claude-mcp:8080`).
+*   **Security:** Centralizes the management of sensitive API keys and secrets via environment variables in the `docker-compose.yml` file.
 
 #### Setup Requirements
+1.  **Docker:** Must be installed and running on the host machine (or deployment environment).
+2.  **Docker Compose:** Required to orchestrate the multiple services (bridge, Claude MCP, etc.).
 
-1.  **API Key:** The system requires the `MANUS_API_KEY` to be set as an environment variable. This key is used for authentication and billing for the Manus services accessed via the MCP.
-2.  **Configuration:** The server's configuration is typically managed within the `/mcp-servers/manus-mcp/config.json` file, which defines the available tools and their parameters.
+#### Starting the Bridge and Services
 
-#### Starting the Service
-
-The Manus MCP server is designed to be started as a background service, often via a dedicated process manager like PM2 or simply by running the server script.
-
-```bash
-# 1. Navigate to the server directory
-cd /mcp-servers/manus-mcp
-
-# 2. Install dependencies (if any)
-npm install
-
-# 3. Start the server in the background
-# The server will expose its tools to the core system via a local port or a registered webhook.
-node server.js &
-```
-
-Once running, the core system's agents can access its tools using the `manus-mcp-cli` utility:
+Assuming the `docker-compose.yml` file is configured correctly in the root of the project:
 
 ```bash
-# Example: Listing available tools
-manus-mcp-cli tool list --server manus-mcp
+# 1. Ensure Docker is running
+# 2. Navigate to the project root
+cd /path/to/affiliate-marketing-system
 
-# Example: Calling a tool
-manus-mcp-cli tool call browser_control --server manus-mcp --input '{"action": "navigate", "url": "..."}'
+# 3. Build and start all services defined in docker-compose.yml
+docker-compose up -d --build
 ```
 
-### 10.2. Integrating an Unlisted MCP Server (e.g., Perplexity)
+### 10.2. Claude MCP Server (`claude-mcp`)
 
-The system is designed to integrate any new service, such as a hypothetical Perplexity MCP server, by following a standardized process.
+The `claude-mcp` server is a custom MCP implementation that provides AI agents with structured, tool-enabled access to Anthropic's Claude models.
 
-#### Step 1: Server Development
+#### Purpose
+*   **Tool Use:** Enables agents to use the `manus-mcp-cli` to invoke Claude for complex reasoning, planning, and structured output generation.
+*   **Model Abstraction:** Abstracts the specific Anthropic API calls, allowing the core system to remain model-agnostic.
 
-A new server must be developed that adheres to the MCP specification. This server acts as a wrapper, translating the standardized MCP tool calls into the specific API calls required by the external service (e.g., Perplexity's API).
+#### Setup and Configuration
+1.  **API Key:** Requires the `ANTHROPIC_API_KEY` to be set in the `docker-compose.yml` file as an environment variable for the `claude-mcp` service.
+2.  **Service Definition (Simplified `docker-compose.yml` snippet):**
 
-*   **Directory:** Create a new directory: `/mcp-servers/perplexity-mcp`.
-*   **Tools Definition:** Define the tools the server exposes (e.g., `search_query`, `answer_question`).
+```yaml
+services:
+  claude-mcp:
+    build: ./mcp-servers/claude-mcp
+    container_name: claude-mcp
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    ports:
+      - "8081:8080" # Expose for debugging, but core system uses internal network
+    networks:
+      - manus-network
+```
 
-#### Step 2: Environment Configuration
+#### Inter-Core Communication (Core System to Claude)
 
-The necessary API keys and secrets for the new service must be added to the system's environment variables.
+The core backend system communicates with the `claude-mcp` server via its internal network hostname.
+
+```javascript
+// Example of an agent calling Claude via the MCP
+const claudeServer = await mcp.connect('claude-mcp');
+const result = await claudeServer.call('generate_structured_output', {
+  prompt: 'Analyze the product data and generate a 5-point marketing plan.',
+  schema: { type: 'json' }
+});
+```
+
+### 10.3. Manus MCP Server (`manus-mcp`)
+
+The `manus-mcp` server is the gateway to the specialized tools and services provided by the Manus platform, which are essential for the system's advanced automation features.
+
+#### Purpose
+*   **Advanced Browser Control:** Provides agents with tools for complex, persistent browser sessions beyond the basic Playwright functions (e.g., `manus-browser-controller`).
+*   **Specialized LLM Endpoints:** Access to fine-tuned or proprietary LLM endpoints for tasks like compliance checking (Core #8) or advanced image analysis.
+
+#### Setup and Configuration
+1.  **API Key:** Requires the `MANUS_API_KEY` to be set in the `docker-compose.yml` file.
+2.  **Service Definition (Simplified `docker-compose.yml` snippet):**
+
+```yaml
+services:
+  manus-mcp:
+    build: ./mcp-servers/manus-mcp
+    container_name: manus-mcp
+    environment:
+      - MANUS_API_KEY=${MANUS_API_KEY}
+    ports:
+      - "8082:8080"
+    networks:
+      - manus-network
+```
+
+#### Inter-Core Communication (Core System to Manus)
+
+Agents use the `manus-mcp-cli` to access these tools, allowing the system to leverage external, high-performance services without complicating the core codebase.
 
 ```bash
-# Example environment variable for Perplexity
-PERPLEXITY_API_KEY=<your_perplexity_key>
+# Example: Agent using a Manus tool for compliance check
+manus-mcp-cli tool call compliance_check --server manus-mcp --input '{"content": "...", "policy": "facebook_ads"}'
 ```
-
-#### Step 3: Server Registration and Startup
-
-The new server must be registered with the core system's MCP registry (typically a configuration file or a database table).
-
-1.  **Register:** Add the server name and its endpoint to the core system's configuration.
-2.  **Start:** Start the new server as a background process.
-
-```bash
-# Example: Starting the new server
-cd /mcp-servers/perplexity-mcp
-node server.js &
-```
-
-Once running, the Perplexity tools become available to all AI agents in the system, allowing them to use Perplexity's search capabilities via the `manus-mcp-cli` utility.
