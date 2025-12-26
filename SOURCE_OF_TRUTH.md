@@ -1092,3 +1092,80 @@ While less common for communication *between* cores, direct function or method c
 *   **Advantage:** This is a standard, efficient way to organize code and separate concerns within a single domain, but it is generally avoided for inter-core communication to maintain loose coupling.
 
 By combining these patterns, the system achieves a balance of decoupling, responsiveness, and reliability, allowing the 8 cores to function as a cohesive and scalable whole.
+
+
+---
+
+## Part 10: Model Context Protocol (MCP) Server Setup
+
+The Model Context Protocol (MCP) is the system's universal integration layer, allowing AI agents to discover and use external tools and services. This section details the setup for key MCP servers, including the core Manus integration, and provides a template for adding new servers.
+
+### 10.1. The Manus MCP Server Integration
+
+The Manus MCP server is a core component that provides the system's agents with access to advanced AI capabilities, including the `manus-browser-controller` and specialized LLM functions.
+
+#### Setup Requirements
+
+1.  **API Key:** The system requires the `MANUS_API_KEY` to be set as an environment variable. This key is used for authentication and billing for the Manus services accessed via the MCP.
+2.  **Configuration:** The server's configuration is typically managed within the `/mcp-servers/manus-mcp/config.json` file, which defines the available tools and their parameters.
+
+#### Starting the Service
+
+The Manus MCP server is designed to be started as a background service, often via a dedicated process manager like PM2 or simply by running the server script.
+
+```bash
+# 1. Navigate to the server directory
+cd /mcp-servers/manus-mcp
+
+# 2. Install dependencies (if any)
+npm install
+
+# 3. Start the server in the background
+# The server will expose its tools to the core system via a local port or a registered webhook.
+node server.js &
+```
+
+Once running, the core system's agents can access its tools using the `manus-mcp-cli` utility:
+
+```bash
+# Example: Listing available tools
+manus-mcp-cli tool list --server manus-mcp
+
+# Example: Calling a tool
+manus-mcp-cli tool call browser_control --server manus-mcp --input '{"action": "navigate", "url": "..."}'
+```
+
+### 10.2. Integrating an Unlisted MCP Server (e.g., Perplexity)
+
+The system is designed to integrate any new service, such as a hypothetical Perplexity MCP server, by following a standardized process.
+
+#### Step 1: Server Development
+
+A new server must be developed that adheres to the MCP specification. This server acts as a wrapper, translating the standardized MCP tool calls into the specific API calls required by the external service (e.g., Perplexity's API).
+
+*   **Directory:** Create a new directory: `/mcp-servers/perplexity-mcp`.
+*   **Tools Definition:** Define the tools the server exposes (e.g., `search_query`, `answer_question`).
+
+#### Step 2: Environment Configuration
+
+The necessary API keys and secrets for the new service must be added to the system's environment variables.
+
+```bash
+# Example environment variable for Perplexity
+PERPLEXITY_API_KEY=<your_perplexity_key>
+```
+
+#### Step 3: Server Registration and Startup
+
+The new server must be registered with the core system's MCP registry (typically a configuration file or a database table).
+
+1.  **Register:** Add the server name and its endpoint to the core system's configuration.
+2.  **Start:** Start the new server as a background process.
+
+```bash
+# Example: Starting the new server
+cd /mcp-servers/perplexity-mcp
+node server.js &
+```
+
+Once running, the Perplexity tools become available to all AI agents in the system, allowing them to use Perplexity's search capabilities via the `manus-mcp-cli` utility.
