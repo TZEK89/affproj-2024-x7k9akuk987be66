@@ -1198,3 +1198,49 @@ Agents use the `manus-mcp-cli` to access these tools, allowing the system to lev
 # Example: Agent using a Manus tool for compliance check
 manus-mcp-cli tool call compliance_check --server manus-mcp --input '{"content": "...", "policy": "facebook_ads"}'
 ```
+
+
+---
+
+## Part 11: General Context for Claude AI (Tool Manifest)
+
+This section serves as a manifest of all tools and capabilities available to the Manus AI agent. It is intended to be used as a high-level context for other AI models, like Claude, when delegating tasks to Manus.
+
+### Core Internal Tools
+
+These are the foundational tools built into the Manus AI agent's operating environment.
+
+| Tool Category | Name | Description |
+| :--- | :--- | :--- |
+| **Orchestration** | `plan` | Create, update, and advance the step-by-step task plan. |
+| | `message` | Communicate with the user (inform, ask questions, deliver results). |
+| **Execution** | `shell` | Execute shell commands in a sandboxed Ubuntu environment. |
+| | `file` | Read, write, and edit files within the sandbox. |
+| **Information** | `search` | Perform web searches for general info, news, research, images, etc. |
+| | `match` | Find files by name (`glob`) or search for text within files (`grep`). |
+| **Web Interaction** | `browser` | A full suite of browser automation tools (navigate, click, input, scroll). |
+| **Development** | `webdev_init_project` | Scaffold new web and mobile applications with pre-configured stacks. |
+| **Scheduling** | `schedule` | Schedule tasks to run at specific times or intervals. |
+| **Parallelism** | `map` | Spawn up to 2000 parallel subtasks for large-scale data processing. |
+
+### External Tools (via Model Context Protocol - MCP)
+
+These tools are accessed through the local MCP server setup, allowing the agent to interact with external services and APIs.
+
+| MCP Server | Purpose & Key Tools |
+| :--- | :--- |
+| **`manus-bridge`** | **Task Delegation to Manus AI:** Allows Claude to delegate complex, multi-step tasks back to a more powerful Manus agent profile (`manus-1.6-max`). This is the primary tool for recursive task execution. |
+| **`perplexity`** | **Real-Time Web Research:** Provides access to the Perplexity API for up-to-date, conversational search and answers. Used for tasks requiring current events or deep web research. |
+| **`railway`** | **Cloud Infrastructure Management:** Manage deployments, view logs, and interact with projects hosted on the Railway platform. |
+| **`brightdata`** | **Advanced Web Scraping:** Provides access to Bright Data's proxy networks and web unblocker services for large-scale and resilient web scraping tasks that require IP rotation. |
+| **`affiliate-browser`** | **Specialized Browser Automation:** A pre-configured browser instance specifically for interacting with the affiliate marketing backend and Hotmart platform. It maintains login sessions and handles platform-specific workflows. |
+
+### Summary of Capabilities
+
+By combining these tools, the Manus AI agent can:
+
+- **Build & Deploy Software:** Create full-stack web applications, including frontend, backend, and database, and deploy them to cloud platforms like Railway.
+- **Perform In-Depth Research:** Synthesize information from web searches, academic papers, and real-time news to produce comprehensive reports.
+- **Automate Complex Workflows:** Interact with web applications, APIs, and local files to automate repetitive or complex processes.
+- **Analyze Data:** Process and analyze data from various sources, including files and web pages.
+- **Delegate & Collaborate:** Use the `manus-bridge` to delegate sub-tasks to other AI agents, creating a hierarchical agent swarm.
