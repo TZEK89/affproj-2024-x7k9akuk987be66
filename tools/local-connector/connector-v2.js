@@ -51,7 +51,7 @@ async function main() {
 
   try {
     // Step 1: Request connect token
-    const tokenResponse = await axios.post(`${API_URL}/local-connect-v2/${platform}/token`);
+    const tokenResponse = await axios.post(`${API_URL}/local-connect/${platform}/token`);
     const { connectToken } = tokenResponse.data;
 
     spinner.succeed('Connect token received');
@@ -110,7 +110,7 @@ async function main() {
     // Step 8: Upload to backend
     spinner = ora('Uploading session to backend...').start();
     
-    const uploadResponse = await axios.post(`${API_URL}/local-connect-v2/${platform}/upload`, {
+    const uploadResponse = await axios.post(`${API_URL}/local-connect/${platform}/upload`, {
       connectToken,
       storageState,
       fingerprint
