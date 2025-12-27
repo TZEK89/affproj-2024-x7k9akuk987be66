@@ -1244,3 +1244,116 @@ By combining these tools, the Manus AI agent can:
 - **Automate Complex Workflows:** Interact with web applications, APIs, and local files to automate repetitive or complex processes.
 - **Analyze Data:** Process and analyze data from various sources, including files and web pages.
 - **Delegate & Collaborate:** Use the `manus-bridge` to delegate sub-tasks to other AI agents, creating a hierarchical agent swarm.
+
+
+---
+
+## Part 10: MCP Infrastructure (Added December 27, 2025)
+
+### 10.1. Custom MCP Servers (Cloudflare Workers)
+
+The system now includes two custom MCP servers deployed as Cloudflare Workers, enabling Manus AI to leverage Claude and Perplexity as reasoning and research engines.
+
+| Server | URL | Purpose | Status |
+|--------|-----|---------|--------|
+| **Claude MCP** | `https://claude-mcp-server.techseoone.workers.dev/mcp` | AI reasoning, code review, analysis | ✅ Active |
+| **Perplexity MCP** | `https://perplexity-mcp-server.techseoone.workers.dev/mcp` | Real-time web research, citations | ✅ Active |
+
+### 10.2. Claude MCP Tools
+
+| Tool | Description | Model Options |
+|------|-------------|---------------|
+| `claude_send_message` | Send prompts for reasoning, analysis, code review | haiku (default), sonnet |
+| `claude_analyze_image` | Vision analysis of images/screenshots | haiku, sonnet |
+| `claude_get_models` | List available models | - |
+
+**Usage Example:**
+```bash
+manus-mcp-cli tool call claude_send_message --server claude-http-mcp --input '{
+  "prompt": "Review this code for security issues",
+  "system": "You are a senior security engineer",
+  "model": "haiku"
+}'
+```
+
+### 10.3. Perplexity MCP Tools
+
+| Tool | Description | Model Options |
+|------|-------------|---------------|
+| `perplexity_search` | Real-time web search with AI synthesis | sonar, sonar-pro |
+| `perplexity_research` | Deep research on topics | sonar-pro (default) |
+| `perplexity_ask` | Q&A with current web information | sonar, sonar-pro |
+
+**Usage Example:**
+```bash
+manus-mcp-cli tool call perplexity_research --server perplexity-pro --input '{
+  "topic": "Best affiliate marketing strategies 2025"
+}'
+```
+
+### 10.4. Tool Chaining Pattern
+
+For complex tasks, chain tools in this order:
+1. **Research** (Perplexity) → Gather current information
+2. **Analyze** (Claude) → Process and create plan
+3. **Implement** (Manus) → Execute the plan
+4. **Verify** (Claude) → Review implementation
+
+---
+
+## Part 11: Standard Operating Procedures (Added December 27, 2025)
+
+### 11.1. SOP Documentation
+
+The project now includes comprehensive Standard Operating Procedures to ensure consistent, production-grade output:
+
+| Document | Purpose |
+|----------|---------|
+| `PROJECT_SOP.md` | Complete operating procedures (context retention, code quality, dashboard standards) |
+| `PROJECT_INSTRUCTIONS.md` | Manus project instructions (loaded automatically for every task) |
+| `CURRENT_STATUS.md` | Active work tracking (update at session start/end) |
+| `DECISION_LOG.md` | Architectural decision records |
+| `ERROR_LOG.md` | Past errors and solutions |
+
+### 11.2. Mandatory Startup Protocol
+
+Before ANY work begins:
+1. Read `PROJECT_SOP.md` completely
+2. Read `SOURCE_OF_TRUTH.md` (this document)
+3. Read `CURRENT_STATUS.md` for active work
+4. Check `ERROR_LOG.md` for relevant past issues
+
+### 11.3. Context Retention System
+
+To prevent context loss during long sessions:
+- Update `CURRENT_STATUS.md` after every significant milestone
+- Re-read context files every 5-6 tool calls
+- Document decisions immediately in `DECISION_LOG.md`
+- Never rely on memory - verify against source files
+
+### 11.4. Code Quality Standards
+
+All code must meet these criteria:
+- TypeScript strict mode for frontend
+- No `any` types without documented justification
+- Error handling for ALL async operations
+- Maximum 50 lines per function, 300 lines per file
+- Must pass: `npm run lint`, `npm run typecheck`, `npm run build`
+
+### 11.5. Dashboard Development Rules
+
+Every dashboard component MUST have:
+- Loading state (skeleton loaders)
+- Error state (user-friendly message)
+- Empty state (meaningful UI)
+- Responsive design (mobile, tablet, desktop)
+- Proper error boundaries
+
+---
+
+## Changelog
+
+| Date | Version | Changes |
+|------|---------|---------|
+| Dec 26, 2025 | 1.0 | Initial comprehensive documentation |
+| Dec 27, 2025 | 1.1 | Added MCP Infrastructure (Part 10), SOPs (Part 11) |
