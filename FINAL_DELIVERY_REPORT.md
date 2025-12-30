@@ -332,7 +332,7 @@ CREATE TABLE scraping_strategies (
 
 **All services deployed to Railway:**
 
-- ✅ **Frontend:** https://affiliate-frontend-production.up.railway.app
+- ✅ **Frontend:** https://affiliate-marketing-dashboard-production.up.railway.app
 - ✅ **Backend:** https://affiliate-backend-production-df21.up.railway.app
 - ✅ **Database:** Supabase (PostgreSQL)
 - ✅ **Job Queue:** Redis (BullMQ)

@@ -117,7 +117,7 @@ affiliate-marketing-system/
 
 ## 🌐 Important Links
 
--   **Frontend:** https://affiliate-frontend-production.up.railway.app
+-   **Frontend:** https://affiliate-marketing-dashboard-production.up.railway.app
 -   **Backend:** https://affiliate-backend-production-df21.up.railway.app/api
 -   **GitHub:** https://github.com/TZEK89/affiliate-marketing-system
 -   **Railway Project:** `chic-truth` (ID: `96bfb253-0353-4b4e-84be-0963767f04af`)

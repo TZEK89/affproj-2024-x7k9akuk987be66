@@ -247,7 +247,7 @@
 
 **Status:** 🚧 Blocked - Deployment Failing
 
-- **URL:** `affiliate-frontend-production.up.railway.app`
+- **URL:** `affiliate-marketing-dashboard-production.up.railway.app`
 - **Issue:** TypeScript compilation errors
 - **Error:** `Cannot find name 'setConnectingId'` (FIXED in code, not deployed)
 - **Status:** Railway serving old cached version

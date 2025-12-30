@@ -73,7 +73,7 @@ Automated ad and content compliance checking.
 ## Technical Infrastructure
 
 ### Deployment
-- **Frontend:** Railway (`affiliate-frontend-production.up.railway.app`)
+- **Frontend:** Railway (`affiliate-marketing-dashboard-production.up.railway.app`)
 - **Backend:** Railway (`affiliate-backend-production-df21.up.railway.app/api`)
 - **Database:** Supabase PostgreSQL
 - **Queue:** Railway Redis + BullMQ

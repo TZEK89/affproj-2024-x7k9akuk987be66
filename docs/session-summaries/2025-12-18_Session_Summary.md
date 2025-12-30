@@ -11,7 +11,7 @@
 -   **Decision:** Both frontend and backend are deployed on Railway (not Vercel).
 -   **Reason:** Vercel was not deploying changes properly or on time.
 -   **URLs:**
-    -   Frontend: `https://affiliate-frontend-production.up.railway.app`
+    -   Frontend: `https://affiliate-marketing-dashboard-production.up.railway.app`
     -   Backend: `https://affiliate-backend-production-df21.up.railway.app/api`
 
 ### Focus on Hotmart First
