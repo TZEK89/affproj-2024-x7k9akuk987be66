@@ -34,7 +34,7 @@ export interface Marketplace {
   scraper_type: string;
   agent_id?: number;
   icon_url?: string;
-  status: 'ready' | 'scraping' | 'error';
+  status: 'ready' | 'scraping' | 'error' | 'paused';
   products_count: number;
   last_scraped_at?: string;
   avg_scrape_duration?: number;
