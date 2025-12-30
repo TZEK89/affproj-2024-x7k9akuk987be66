@@ -5,6 +5,14 @@ const router = express.Router();
 const MarketplaceService = require('../services/marketplace/MarketplaceService');
 const { PLATFORM_PRESETS, SCRAPER_TYPES } = require('../services/marketplace/PlatformPresets');
 
+// Import job system for scrape queuing
+let jobSystem = null;
+try {
+  jobSystem = require('../jobs');
+} catch (error) {
+  console.warn('Job system not available for marketplace scraping:', error.message);
+}
+
 // Get platform presets (must be before /:id route)
 router.get('/config/presets', (req, res) => {
   res.json({ success: true, presets: PLATFORM_PRESETS });
@@ -136,7 +144,7 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// Trigger scrape (placeholder - will be expanded in Block 3)
+// Trigger scrape
 router.post('/:id/scrape', async (req, res) => {
   try {
     const { id } = req.params;
@@ -161,18 +169,34 @@ router.post('/:id/scrape', async (req, res) => {
         url: marketplace.base_url,
         max_products: marketplace.max_products,
         language: marketplace.language,
-        category_filter: marketplace.category_filter
+        category_filter: marketplace.category_filter,
+        scraper_type: marketplace.scraper_type
       }
     });
 
     // Update status
     await MarketplaceService.updateStatus(id, 'scraping');
 
-    // TODO: Queue the actual scrape job (Block 3)
+    // Queue the scrape job
+    let job = null;
+    if (jobSystem && jobSystem.isInitialized()) {
+      job = await jobSystem.queueScrape({
+        sessionId,
+        marketplaceId: parseInt(id),
+        userId,
+        config: {
+          url: marketplace.base_url,
+          scraperType: marketplace.scraper_type,
+          maxProducts: marketplace.max_products
+        }
+      });
+    }
+
     res.json({
       success: true,
       sessionId,
-      message: 'Scrape session created. Scraper implementation coming in Block 3.'
+      jobId: job?.id || null,
+      message: job ? 'Scrape job queued' : 'Scrape session created (job system not available)'
     });
   } catch (error) {
     console.error('Error triggering scrape:', error);
