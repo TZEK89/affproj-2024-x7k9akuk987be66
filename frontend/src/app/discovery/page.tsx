@@ -1,30 +1,60 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Filter, ThumbsUp, ThumbsDown, ExternalLink, TrendingUp, Target, Users, DollarSign } from 'lucide-react';
+import { Search, Filter, ThumbsUp, ThumbsDown, ExternalLink, TrendingUp, Target, Users, DollarSign, Sparkles, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import Header from '@/components/Header';
 import Button from '@/components/Button';
 import { formatCurrency } from '@/lib/utils';
-import { agentsApi } from '@/lib/api-service';
-import { DiscoveredProduct } from '@/types/agents';
+import { discoveryProductsApi, Product, ProductFilters } from '@/lib/api/products';
 
 export default function DiscoveryPage() {
-  const [products, setProducts] = useState<DiscoveredProduct[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [minScore, setMinScore] = useState(0);
-  const [selectedProduct, setSelectedProduct] = useState<DiscoveredProduct | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [platforms, setPlatforms] = useState<string[]>([]);
+
+  // Filters
+  const [filters, setFilters] = useState<ProductFilters>({
+    stage: 'discovery',
+    sort_by: 'overall_score',
+    sort_order: 'desc',
+    page: 1,
+    limit: 20
+  });
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchProducts();
-  }, [minScore]);
+  }, [filters]);
+
+  useEffect(() => {
+    loadFilterOptions();
+  }, []);
+
+  const loadFilterOptions = async () => {
+    try {
+      const platformsRes = await discoveryProductsApi.getPlatforms();
+      setPlatforms(platformsRes.platforms || []);
+    } catch (err) {
+      console.error('Error loading filter options:', err);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
-      const response = await agentsApi.getDiscoveredProducts({ minScore });
-      if (response.success) {
-        setProducts(response.products || []);
-      }
+      setLoading(true);
+      const response = await discoveryProductsApi.getAll({
+        ...filters,
+        search: searchTerm || undefined
+      });
+      setProducts(response.products || []);
+      setTotal(response.total || 0);
+      setTotalPages(response.totalPages || 1);
+      setError(null);
     } catch (err: any) {
       console.error('Error fetching products:', err);
       setError(err.message || 'Failed to load products');
@@ -33,39 +63,83 @@ export default function DiscoveryPage() {
     }
   };
 
-  const handlePromote = async (productId: number) => {
+  const handleSearch = () => {
+    setFilters(prev => ({ ...prev, page: 1 }));
+    fetchProducts();
+  };
+
+  const handlePromote = async (product: Product) => {
     try {
-      await agentsApi.promoteProduct(productId.toString());
-      alert('Product promoted successfully!');
-      fetchProducts();
+      await discoveryProductsApi.promote(product.id);
+      setProducts(prev => prev.filter(p => p.id !== product.id));
+      setTotal(prev => prev - 1);
+      setSelectedProduct(null);
+      alert(`"${product.name}" promoted to Offers!`);
     } catch (err: any) {
       console.error('Error promoting product:', err);
       alert('Failed to promote product: ' + err.message);
     }
   };
 
-  const handleDismiss = async (productId: number) => {
+  const handleArchive = async (product: Product) => {
     try {
-      await agentsApi.updateDiscoveredProduct(productId.toString(), { status: 'dismissed' });
-      fetchProducts();
+      await discoveryProductsApi.archive(product.id);
+      setProducts(prev => prev.filter(p => p.id !== product.id));
+      setTotal(prev => prev - 1);
+      setSelectedProduct(null);
     } catch (err: any) {
-      console.error('Error dismissing product:', err);
-      alert('Failed to dismiss product: ' + err.message);
+      console.error('Error archiving product:', err);
+      alert('Failed to archive product: ' + err.message);
     }
   };
 
-  if (error) {
-    return (
-      <div>
-        <Header title="Discovery Workbench" subtitle="Core #1: Offer Intelligence Engine - AI-discovered products ready for promotion" />
-        <div className="p-6">
-          <div className="bg-error-50 border border-error-200 rounded-lg p-4 text-error-800">
-            Error loading products: {error}
-          </div>
-        </div>
+  const handleDeepAnalysis = async (product: Product) => {
+    setIsAnalyzing(true);
+    try {
+      await discoveryProductsApi.deepAnalysis(product.id);
+      // Refresh the selected product with analysis data
+      const updated = await discoveryProductsApi.getById(product.id);
+      setSelectedProduct(updated.product);
+      // Also update in the list
+      setProducts(prev => prev.map(p => p.id === product.id ? updated.product : p));
+    } catch (err: any) {
+      console.error('Error analyzing product:', err);
+      alert('Analysis failed: ' + err.message);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const getScoreColor = (score: number | null) => {
+    if (!score) return 'text-gray-400';
+    if (score >= 70) return 'text-success-600';
+    if (score >= 40) return 'text-warning-600';
+    return 'text-error-600';
+  };
+
+  const getScoreBg = (score: number | null) => {
+    if (!score) return 'bg-gray-100';
+    if (score >= 70) return 'bg-success-50';
+    if (score >= 40) return 'bg-warning-50';
+    return 'bg-error-50';
+  };
+
+  const ScoreBar = ({ label, score }: { label: string; score: number | null }) => (
+    <div className="space-y-1">
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-600">{label}</span>
+        <span className="font-medium text-gray-900">{score ?? '-'}/100</span>
       </div>
-    );
-  }
+      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${
+            (score || 0) >= 70 ? 'bg-success-500' : (score || 0) >= 40 ? 'bg-warning-500' : 'bg-error-500'
+          }`}
+          style={{ width: `${score || 0}%` }}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -75,52 +149,96 @@ export default function DiscoveryPage() {
       />
 
       <div className="p-6 space-y-6">
-        {/* Filters */}
+        {/* Search & Filters */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center gap-4">
-            <Filter className="h-5 w-5 text-gray-400" />
-            <div className="flex items-center gap-3 flex-1">
-              <label className="text-sm font-medium text-gray-700">Min AI Score:</label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="10"
-                value={minScore}
-                onChange={(e) => setMinScore(parseInt(e.target.value))}
-                className="flex-1"
-              />
-              <span className="text-sm font-bold text-gray-900 w-12">{minScore}</span>
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex-1 min-w-[300px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  placeholder="Search products..."
+                  className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                />
+              </div>
             </div>
+
+            <select
+              value={filters.platform || ''}
+              onChange={(e) => setFilters(prev => ({ ...prev, platform: e.target.value || undefined, page: 1 }))}
+              className="border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="">All Platforms</option>
+              {platforms.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+
+            <select
+              value={filters.sort_by || 'overall_score'}
+              onChange={(e) => setFilters(prev => ({ ...prev, sort_by: e.target.value, page: 1 }))}
+              className="border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="overall_score">Sort by Score</option>
+              <option value="temperature">Sort by Temperature</option>
+              <option value="price">Sort by Price</option>
+              <option value="scraped_at">Sort by Date</option>
+            </select>
+
+            <select
+              value={`${filters.min_score || ''}-${filters.max_score || ''}`}
+              onChange={(e) => {
+                const [min, max] = e.target.value.split('-').map(v => v ? parseInt(v) : undefined);
+                setFilters(prev => ({ ...prev, min_score: min, max_score: max, page: 1 }));
+              }}
+              className="border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="-">All Scores</option>
+              <option value="70-100">High (70-100)</option>
+              <option value="40-69">Medium (40-69)</option>
+              <option value="0-39">Low (0-39)</option>
+            </select>
+
+            <Button onClick={handleSearch} variant="secondary" size="sm">
+              <Filter className="h-4 w-4 mr-2" />
+              Apply
+            </Button>
           </div>
         </div>
 
-        {loading ? (
+        {/* Stats Bar */}
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <span>{total} products in discovery</span>
+          <span>Page {filters.page} of {totalPages}</span>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="bg-error-50 border border-error-200 rounded-lg p-4 text-error-800">
+            Error loading products: {error}
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
           <div className="p-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
             Loading products...
           </div>
-        ) : products.length === 0 ? (
-          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-            <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">🎯</span>
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No products discovered yet</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Create a research mission to discover products
-            </p>
-            <Button onClick={() => window.location.href = '/missions'}>
-              Go to Missions
-            </Button>
-          </div>
-        ) : (
+        )}
+
+        {/* Products List */}
+        {!loading && products.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Products Grid */}
             <div className="lg:col-span-2 space-y-4">
               {products.map((product) => (
                 <div
                   key={product.id}
-                  className={`bg-white rounded-lg border-2 p-6 cursor-pointer transition-all ${
+                  className={`bg-white rounded-lg border-2 p-4 cursor-pointer transition-all ${
                     selectedProduct?.id === product.id
                       ? 'border-primary-500 shadow-lg'
                       : 'border-gray-200 hover:border-primary-300'
@@ -128,83 +246,63 @@ export default function DiscoveryPage() {
                   onClick={() => setSelectedProduct(product)}
                 >
                   <div className="flex items-start gap-4">
-                    {product.image_url && (
+                    {product.image_url ? (
                       <img
                         src={product.image_url}
-                        alt={product.product_name}
-                        className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
+                        alt={product.name}
+                        className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
                       />
+                    ) : (
+                      <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <DollarSign className="w-8 h-8 text-gray-300" />
+                      </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 mb-2">{product.product_name}</h3>
-                      
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div className="flex items-center gap-2 text-sm">
-                          <DollarSign className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-900 font-medium">
-                            {formatCurrency(product.price, product.currency)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <TrendingUp className="h-4 w-4 text-success-500" />
-                          <span className="text-success-600 font-medium">
-                            {product.commission_rate}% ({formatCurrency(product.commission_amount, product.currency)})
-                          </span>
-                        </div>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h3 className="font-semibold text-gray-900 line-clamp-1">{product.name}</h3>
+                        <span className={`px-2 py-1 rounded text-sm font-medium ${getScoreBg(product.overall_score)} ${getScoreColor(product.overall_score)}`}>
+                          {product.overall_score || '-'}
+                        </span>
                       </div>
 
-                      {/* AI Score Bar */}
-                      <div className="mb-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium text-gray-500">AI Score</span>
-                          <span className="text-xs font-bold text-gray-900">{product.ai_score}/100</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full ${
-                              product.ai_score >= 80 ? 'bg-success-600' :
-                              product.ai_score >= 60 ? 'bg-warning-600' :
-                              'bg-error-600'
-                            }`}
-                            style={{ width: `${product.ai_score}%` }}
-                          ></div>
-                        </div>
+                      <div className="flex flex-wrap gap-3 mb-2 text-sm">
+                        <span className="text-gray-600">{product.platform || 'Unknown'}</span>
+                        <span className="text-gray-900 font-medium">
+                          {formatCurrency(product.price || 0, product.currency)}
+                        </span>
+                        {product.temperature && (
+                          <span className="text-orange-600 flex items-center gap-1">
+                            🔥 {product.temperature}°
+                          </span>
+                        )}
                       </div>
 
-                      {/* Quick Info */}
                       <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                        {product.ai_recommendation}
+                        {product.description || 'No description available'}
                       </p>
 
-                      {/* Actions */}
+                      {/* Quick Actions */}
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePromote(product.id);
+                            handlePromote(product);
                           }}
-                          disabled={product.status === 'promoted'}
                         >
-                          {product.status === 'promoted' ? (
-                            'Promoted'
-                          ) : (
-                            <>
-                              <ThumbsUp className="h-3 w-3 mr-1" />
-                              Promote
-                            </>
-                          )}
+                          <ThumbsUp className="h-3 w-3 mr-1" />
+                          Promote
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDismiss(product.id);
+                            handleArchive(product);
                           }}
                         >
                           <ThumbsDown className="h-3 w-3 mr-1" />
-                          Dismiss
+                          Archive
                         </Button>
                         {product.product_url && (
                           <a
@@ -225,116 +323,105 @@ export default function DiscoveryPage() {
               ))}
             </div>
 
-            {/* AI Analysis Panel */}
+            {/* Detail Panel */}
             <div className="lg:col-span-1">
               {selectedProduct ? (
                 <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">AI Analysis</h3>
-                  
+                  <div className="flex items-start justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Product Details</h3>
+                    <button onClick={() => setSelectedProduct(null)} className="text-gray-400 hover:text-gray-600">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
                   {/* Product Info */}
                   <div className="mb-6">
                     {selectedProduct.image_url && (
                       <img
                         src={selectedProduct.image_url}
-                        alt={selectedProduct.product_name}
+                        alt={selectedProduct.name}
                         className="w-full h-48 object-cover rounded-lg mb-4"
                       />
                     )}
-                    <h4 className="font-medium text-gray-900 mb-2">{selectedProduct.product_name}</h4>
-                    <p className="text-sm text-gray-600 mb-3">{selectedProduct.description}</p>
+                    <h4 className="font-medium text-gray-900 mb-2">{selectedProduct.name}</h4>
+                    <div className="flex items-center gap-3 mb-3 text-sm">
+                      <span className="px-2 py-1 bg-gray-100 rounded">{selectedProduct.platform}</span>
+                      <span className="font-medium">{formatCurrency(selectedProduct.price || 0, selectedProduct.currency)}</span>
+                    </div>
+                    <p className="text-sm text-gray-600">{selectedProduct.description}</p>
                   </div>
 
-                  {/* Metrics */}
-                  <div className="space-y-4 mb-6">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-700">AI Score</span>
-                        <span className="text-2xl font-bold text-gray-900">{selectedProduct.ai_score}/100</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div
-                          className={`h-3 rounded-full ${
-                            selectedProduct.ai_score >= 80 ? 'bg-success-600' :
-                            selectedProduct.ai_score >= 60 ? 'bg-warning-600' :
-                            'bg-error-600'
-                          }`}
-                          style={{ width: `${selectedProduct.ai_score}%` }}
-                        ></div>
-                      </div>
+                  {/* AI Scores */}
+                  <div className="mb-6">
+                    <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-primary-600" />
+                      AI Scores
+                    </h5>
+                    <div className="space-y-3">
+                      <ScoreBar label="Demand" score={selectedProduct.demand_score} />
+                      <ScoreBar label="Description" score={selectedProduct.description_score} />
+                      <ScoreBar label="Price Point" score={selectedProduct.price_score} />
+                      <ScoreBar label="Niche" score={selectedProduct.niche_score} />
+                      <ScoreBar label="Competition" score={selectedProduct.competition_score} />
+                      <ScoreBar label="Visual" score={selectedProduct.visual_score} />
                     </div>
-
-                    {selectedProduct.estimated_conversion_rate && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Est. Conversion Rate</span>
-                        <span className="text-sm font-medium text-gray-900">
-                          {selectedProduct.estimated_conversion_rate}%
-                        </span>
-                      </div>
-                    )}
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg flex items-center justify-between">
+                      <span className="text-gray-700 font-medium">Overall Score</span>
+                      <span className={`text-2xl font-bold ${getScoreColor(selectedProduct.overall_score)}`}>
+                        {selectedProduct.overall_score || '-'}/100
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Strengths */}
-                  {selectedProduct.ai_strengths && selectedProduct.ai_strengths.length > 0 && (
-                    <div className="mb-6">
-                      <h5 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
-                        <ThumbsUp className="h-4 w-4 text-success-600" />
-                        Strengths
-                      </h5>
-                      <ul className="space-y-1">
-                        {selectedProduct.ai_strengths.map((strength, index) => (
-                          <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
-                            <span className="text-success-600">•</span>
-                            <span>{strength}</span>
-                          </li>
-                        ))}
-                      </ul>
+                  {/* Deep Analysis Button */}
+                  <div className="mb-6">
+                    <Button
+                      onClick={() => handleDeepAnalysis(selectedProduct)}
+                      disabled={isAnalyzing}
+                      variant="secondary"
+                      fullWidth
+                    >
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      {isAnalyzing ? 'Analyzing...' : 'Run Deep Analysis'}
+                    </Button>
+                  </div>
+
+                  {/* Analysis Results */}
+                  {(selectedProduct.promotion_summary || selectedProduct.target_audience) && (
+                    <div className="space-y-4 mb-6">
+                      {selectedProduct.promotion_summary && (
+                        <div>
+                          <h5 className="text-sm font-medium text-gray-900 mb-1">Summary</h5>
+                          <p className="text-sm text-gray-600">{selectedProduct.promotion_summary}</p>
+                        </div>
+                      )}
+                      {selectedProduct.target_audience && (
+                        <div>
+                          <h5 className="text-sm font-medium text-gray-900 mb-1 flex items-center gap-2">
+                            <Users className="h-4 w-4 text-blue-600" />
+                            Target Audience
+                          </h5>
+                          <p className="text-sm text-gray-600">{selectedProduct.target_audience}</p>
+                        </div>
+                      )}
+                      {selectedProduct.promotion_strategy && (
+                        <div>
+                          <h5 className="text-sm font-medium text-gray-900 mb-1 flex items-center gap-2">
+                            <Target className="h-4 w-4 text-purple-600" />
+                            Promotion Strategy
+                          </h5>
+                          <p className="text-sm text-gray-600 whitespace-pre-line">{selectedProduct.promotion_strategy}</p>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* Weaknesses */}
-                  {selectedProduct.ai_weaknesses && selectedProduct.ai_weaknesses.length > 0 && (
-                    <div className="mb-6">
-                      <h5 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
-                        <ThumbsDown className="h-4 w-4 text-error-600" />
-                        Weaknesses
-                      </h5>
-                      <ul className="space-y-1">
-                        {selectedProduct.ai_weaknesses.map((weakness, index) => (
-                          <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
-                            <span className="text-error-600">•</span>
-                            <span>{weakness}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Target Audience */}
-                  {selectedProduct.target_audience && (
-                    <div className="mb-6">
-                      <h5 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
-                        <Users className="h-4 w-4 text-blue-600" />
-                        Target Audience
-                      </h5>
-                      <p className="text-sm text-gray-700">{selectedProduct.target_audience}</p>
-                    </div>
-                  )}
-
-                  {/* Market Competition */}
-                  {selectedProduct.market_competition && (
-                    <div className="mb-6">
-                      <h5 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
-                        <Target className="h-4 w-4 text-purple-600" />
-                        Market Competition
-                      </h5>
-                      <p className="text-sm text-gray-700">{selectedProduct.market_competition}</p>
-                    </div>
-                  )}
-
-                  {/* Recommendation */}
-                  <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
-                    <h5 className="text-sm font-medium text-primary-900 mb-2">AI Recommendation</h5>
-                    <p className="text-sm text-primary-800">{selectedProduct.ai_recommendation}</p>
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <Button onClick={() => handlePromote(selectedProduct)} fullWidth>
+                      <ThumbsUp className="h-4 w-4 mr-2" />
+                      Promote to Offers
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -348,6 +435,49 @@ export default function DiscoveryPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && products.length === 0 && !error && (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+              <TrendingUp className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No products in discovery</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Add a marketplace and run a scrape to discover products
+            </p>
+            <Button onClick={() => window.location.href = '/integrations'}>
+              Go to Integrations
+            </Button>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) - 1 }))}
+              disabled={filters.page === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <span className="px-4 py-2 text-sm text-gray-600">
+              Page {filters.page} of {totalPages}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }))}
+              disabled={(filters.page || 1) >= totalPages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
         )}
       </div>
