@@ -165,7 +165,7 @@ export default function MarketplaceCard({
             onClick={() => onScrape(marketplace.id)}
             variant="primary"
             size="sm"
-            disabled={isScraping || marketplace.status === 'scraping'}
+            disabled={isScraping}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isScraping ? 'animate-spin' : ''}`} />
             Scrape
