@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Check, X, RefreshCw, Settings, ExternalLink, AlertCircle, Download, CheckCircle, Zap, TrendingUp, Shield, Clock } from 'lucide-react';
+import { Check, X, RefreshCw, Settings, ExternalLink, AlertCircle, Download, CheckCircle, Zap, TrendingUp, Shield, Clock, Plus, Globe } from 'lucide-react';
 import Header from '@/components/Header';
 import Button from '@/components/Button';
 import StatusBadge from '@/components/StatusBadge';
 import { integrationsApi } from '@/lib/api-service';
 import ConnectModal from '@/components/ConnectModal';
+import { marketplacesApi, Marketplace } from '@/lib/api/marketplaces';
+import MarketplaceCard from '@/components/marketplace/MarketplaceCard';
+import AddMarketplaceModal from '@/components/marketplace/AddMarketplaceModal';
 
 interface Integration {
   id: string;
@@ -51,10 +54,74 @@ export default function IntegrationsPage() {
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<{id: string, name: string} | null>(null);
 
+  // Public Marketplaces state
+  const [marketplaces, setMarketplaces] = useState<Marketplace[]>([]);
+  const [marketplaceModalOpen, setMarketplaceModalOpen] = useState(false);
+  const [editingMarketplace, setEditingMarketplace] = useState<Marketplace | null>(null);
+  const [scrapingId, setScrapingId] = useState<number | null>(null);
+
   // Load platform statuses on mount
   useEffect(() => {
     loadPlatformStatuses();
+    loadMarketplaces();
   }, []);
+
+  // Load public marketplaces
+  const loadMarketplaces = async () => {
+    try {
+      const result = await marketplacesApi.getAll();
+      setMarketplaces(result.marketplaces || []);
+    } catch (error) {
+      console.error('Error loading marketplaces:', error);
+    }
+  };
+
+  // Marketplace handlers
+  const handleScrapeMarketplace = async (id: number) => {
+    setScrapingId(id);
+    try {
+      const result = await marketplacesApi.triggerScrape(id);
+      setSyncMessage(`Scrape started for marketplace. Session: ${result.sessionId}`);
+      // Reload to update status
+      await loadMarketplaces();
+      setTimeout(() => setSyncMessage(''), 5000);
+    } catch (error: any) {
+      setSyncMessage(`Error: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setScrapingId(null);
+    }
+  };
+
+  const handleCancelScrape = async (id: number) => {
+    try {
+      await marketplacesApi.cancelScrape(id);
+      setSyncMessage('Scrape cancelled');
+      await loadMarketplaces();
+      setTimeout(() => setSyncMessage(''), 3000);
+    } catch (error: any) {
+      setSyncMessage(`Error: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  const handleDeleteMarketplace = async (id: number) => {
+    try {
+      await marketplacesApi.delete(id);
+      setMarketplaces(marketplaces.filter(m => m.id !== id));
+      setSyncMessage('Marketplace deleted');
+      setTimeout(() => setSyncMessage(''), 3000);
+    } catch (error: any) {
+      setSyncMessage(`Error: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  const handleMarketplaceSuccess = (marketplace: Marketplace) => {
+    if (editingMarketplace) {
+      setMarketplaces(marketplaces.map(m => m.id === marketplace.id ? marketplace : m));
+    } else {
+      setMarketplaces([...marketplaces, marketplace]);
+    }
+    setEditingMarketplace(null);
+  };
 
   const loadPlatformStatuses = async () => {
     try {
@@ -371,6 +438,69 @@ export default function IntegrationsPage() {
           </div>
         )}
 
+        {/* Public Marketplaces Section */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary-600" />
+                Public Marketplaces
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Discover products from public affiliate marketplaces using AI-powered scraping
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                setEditingMarketplace(null);
+                setMarketplaceModalOpen(true);
+              }}
+              variant="primary"
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Marketplace
+            </Button>
+          </div>
+
+          {marketplaces.length === 0 ? (
+            <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
+              <Globe className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No marketplaces configured</h3>
+              <p className="text-gray-600 mb-4">
+                Add public marketplaces like Hotmart, ClickBank, or JVZoo to discover affiliate products
+              </p>
+              <Button
+                onClick={() => {
+                  setEditingMarketplace(null);
+                  setMarketplaceModalOpen(true);
+                }}
+                variant="primary"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Your First Marketplace
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {marketplaces.map((marketplace) => (
+                <MarketplaceCard
+                  key={marketplace.id}
+                  marketplace={marketplace}
+                  onScrape={handleScrapeMarketplace}
+                  onCancel={handleCancelScrape}
+                  onEdit={(m) => {
+                    setEditingMarketplace(m);
+                    setMarketplaceModalOpen(true);
+                  }}
+                  onDelete={handleDeleteMarketplace}
+                  isScraping={scrapingId === marketplace.id}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Affiliate Platforms */}
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Affiliate Networks</h2>
@@ -523,6 +653,17 @@ export default function IntegrationsPage() {
           }}
         />
       )}
+
+      {/* Add/Edit Marketplace Modal */}
+      <AddMarketplaceModal
+        isOpen={marketplaceModalOpen}
+        onClose={() => {
+          setMarketplaceModalOpen(false);
+          setEditingMarketplace(null);
+        }}
+        onSuccess={handleMarketplaceSuccess}
+        editMarketplace={editingMarketplace}
+      />
     </div>
   );
 }
