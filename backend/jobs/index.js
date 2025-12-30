@@ -15,18 +15,20 @@
  */
 
 const queues = require('./queues');
-const { 
-  createMissionWorker, 
-  createResultsWorker, 
+const {
+  createMissionWorker,
+  createResultsWorker,
   createNotificationsWorker,
-  MISSION_STATUS 
+  MISSION_STATUS
 } = require('./missionProcessor');
+const { createScrapeWorker } = require('./scrapeProcessor');
 
 // Store worker instances for graceful shutdown
 let workers = {
   mission: null,
   results: null,
-  notifications: null
+  notifications: null,
+  scrape: null
 };
 
 // Initialization status
@@ -57,10 +59,12 @@ const initialize = async (options = {}) => {
   
   // Start workers if requested
   if (startWorkers) {
+    const connection = queues.getConnection();
     workers.mission = createMissionWorker();
     workers.results = createResultsWorker();
     workers.notifications = createNotificationsWorker();
-    
+    workers.scrape = createScrapeWorker(connection);
+
     console.log('✅ Agent Job System initialized with workers');
   } else {
     console.log('✅ Agent Job System initialized (workers disabled)');
@@ -109,12 +113,47 @@ const getMissionStatus = async (missionId) => {
 
 /**
  * Cancel a pending or running mission
- * 
+ *
  * @param {number} missionId - The mission ID
  * @returns {Promise<boolean>} True if cancelled
  */
 const cancelMission = async (missionId) => {
   return queues.cancelMissionJob(missionId);
+};
+
+/**
+ * Queue a scrape job for processing
+ *
+ * @param {Object} scrapeData - The scrape job data
+ * @param {string} scrapeData.sessionId - Scrape session ID
+ * @param {number} scrapeData.marketplaceId - Marketplace ID
+ * @param {number} scrapeData.userId - User ID
+ * @param {Object} scrapeData.config - Scraper configuration
+ * @param {Object} options - Queue job options
+ * @returns {Promise<Object>} The created job
+ */
+const queueScrape = async (scrapeData, options = {}) => {
+  if (!isInitialized || !queues.getQueues().scrape) {
+    console.warn('Job system not initialized - scrape job will not be processed');
+    return {
+      id: `pending-${scrapeData.sessionId}`,
+      data: scrapeData,
+      state: 'pending',
+      note: 'Job system not available'
+    };
+  }
+
+  return queues.addScrapeJob(scrapeData, options);
+};
+
+/**
+ * Get the status of a scrape job
+ *
+ * @param {string} sessionId - The session ID
+ * @returns {Promise<Object|null>} Job status or null
+ */
+const getScrapeStatus = async (sessionId) => {
+  return queues.getScrapeJobStatus(sessionId);
 };
 
 /**
@@ -207,20 +246,24 @@ module.exports = {
   // Initialization
   initialize,
   shutdown,
-  
+
   // Mission operations
   queueMission,
   getMissionStatus,
   cancelMission,
-  
+
+  // Scrape operations
+  queueScrape,
+  getScrapeStatus,
+
   // Monitoring
   getStats,
   healthCheck,
   cleanup,
-  
+
   // Constants
   MISSION_STATUS,
-  
+
   // Internal access (for advanced use cases)
   getQueues: queues.getQueues,
   getWorkers: () => workers,

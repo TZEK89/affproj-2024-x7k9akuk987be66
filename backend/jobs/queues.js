@@ -46,7 +46,8 @@ const getRedisConnection = () => {
 const QUEUE_NAMES = {
   MISSIONS: 'agent-missions',
   RESULTS: 'agent-results',
-  NOTIFICATIONS: 'agent-notifications'
+  NOTIFICATIONS: 'agent-notifications',
+  SCRAPE: 'marketplace-scrape'
 };
 
 // Job options with retry configuration
@@ -105,7 +106,20 @@ const initializeQueues = () => {
         attempts: 2
       }
     });
-    
+
+    // Create the marketplace scrape queue
+    queues.scrape = new Queue(QUEUE_NAMES.SCRAPE, {
+      connection,
+      defaultJobOptions: {
+        ...DEFAULT_JOB_OPTIONS,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 5000 // Start with 5 seconds for scrape retries
+        }
+      }
+    });
+
     console.log('✅ Queue system initialized successfully');
     return true;
   } catch (error) {
@@ -269,26 +283,114 @@ const cancelMissionJob = async (missionId) => {
 };
 
 /**
+ * Add a scrape job to the queue
+ *
+ * @param {Object} scrapeData - The scrape job details
+ * @param {string} scrapeData.sessionId - Scrape session ID
+ * @param {number} scrapeData.marketplaceId - Marketplace ID
+ * @param {number} scrapeData.userId - User ID
+ * @param {Object} scrapeData.config - Scraper configuration
+ * @param {Object} options - Optional job configuration overrides
+ * @returns {Promise<Object>} The created job
+ */
+const addScrapeJob = async (scrapeData, options = {}) => {
+  if (!queues.scrape) {
+    throw new Error('Queue system not initialized');
+  }
+
+  const jobId = `scrape-${scrapeData.sessionId}`;
+
+  const job = await queues.scrape.add(
+    'scrape-marketplace',
+    {
+      ...scrapeData,
+      queuedAt: new Date().toISOString()
+    },
+    {
+      jobId,
+      priority: options.priority || 0,
+      ...options
+    }
+  );
+
+  console.log(`🔍 Scrape job queued: ${job.id}`);
+  return job;
+};
+
+/**
+ * Get scrape job status
+ *
+ * @param {string} sessionId - The session ID
+ * @returns {Promise<Object|null>} Job status or null
+ */
+const getScrapeJobStatus = async (sessionId) => {
+  if (!queues.scrape) {
+    return null;
+  }
+
+  const jobId = `scrape-${sessionId}`;
+  const job = await queues.scrape.getJob(jobId);
+
+  if (!job) {
+    return null;
+  }
+
+  const state = await job.getState();
+
+  return {
+    jobId: job.id,
+    state,
+    progress: job.progress,
+    attemptsMade: job.attemptsMade,
+    processedOn: job.processedOn,
+    finishedOn: job.finishedOn,
+    failedReason: job.failedReason
+  };
+};
+
+/**
  * Get queue statistics
  * Useful for monitoring and dashboard display
- * 
+ *
  * @returns {Promise<Object>} Queue statistics
  */
 const getQueueStats = async () => {
   if (!queues.missions) {
     return null;
   }
-  
-  const [waiting, active, completed, failed, delayed] = await Promise.all([
-    queues.missions.getWaitingCount(),
-    queues.missions.getActiveCount(),
-    queues.missions.getCompletedCount(),
-    queues.missions.getFailedCount(),
-    queues.missions.getDelayedCount()
+
+  const [missionStats, scrapeStats] = await Promise.all([
+    Promise.all([
+      queues.missions.getWaitingCount(),
+      queues.missions.getActiveCount(),
+      queues.missions.getCompletedCount(),
+      queues.missions.getFailedCount(),
+      queues.missions.getDelayedCount()
+    ]),
+    queues.scrape ? Promise.all([
+      queues.scrape.getWaitingCount(),
+      queues.scrape.getActiveCount(),
+      queues.scrape.getCompletedCount(),
+      queues.scrape.getFailedCount(),
+      queues.scrape.getDelayedCount()
+    ]) : [0, 0, 0, 0, 0]
   ]);
-  
+
   return {
-    missions: { waiting, active, completed, failed, delayed },
+    missions: {
+      waiting: missionStats[0],
+      active: missionStats[1],
+      completed: missionStats[2],
+      failed: missionStats[3],
+      delayed: missionStats[4]
+    },
+    scrape: {
+      waiting: scrapeStats[0],
+      active: scrapeStats[1],
+      completed: scrapeStats[2],
+      failed: scrapeStats[3],
+      delayed: scrapeStats[4]
+    },
     timestamp: new Date().toISOString()
   };
 };
@@ -309,8 +411,10 @@ const cleanupOldJobs = async () => {
     queues.missions.clean(gracePeriod, 1000, 'completed'),
     queues.missions.clean(gracePeriod, 1000, 'failed'),
     queues.results.clean(gracePeriod, 1000, 'completed'),
-    queues.notifications.clean(gracePeriod, 1000, 'completed')
-  ]);
+    queues.notifications.clean(gracePeriod, 1000, 'completed'),
+    queues.scrape?.clean(gracePeriod, 1000, 'completed'),
+    queues.scrape?.clean(gracePeriod, 1000, 'failed')
+  ].filter(Boolean));
   
   console.log('🧹 Queue cleanup completed');
 };
@@ -337,6 +441,10 @@ module.exports = {
   addNotificationJob,
   getMissionJobStatus,
   cancelMissionJob,
+  // Scrape queue functions
+  addScrapeJob,
+  getScrapeJobStatus,
+  // Utilities
   getQueueStats,
   cleanupOldJobs,
   shutdownQueues,
