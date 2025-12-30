@@ -75,7 +75,7 @@ All pages now load successfully:
 - **Job System:** ✅ Running (Redis/BullMQ)
 
 ### Frontend
-- **URL:** https://affiliate-frontend-production.up.railway.app
+- **URL:** https://affiliate-marketing-dashboard-production.up.railway.app
 - **Status:** ✅ Deployed & Working
 - **API Connection:** ✅ Properly configured
 
@@ -154,6 +154,6 @@ All changes have been pushed to your repository:
 
 The system is now fully operational without authentication. All 404 errors are resolved, and you can use the dashboard immediately for personal use.
 
-**Dashboard URL:** https://affiliate-frontend-production.up.railway.app
+**Dashboard URL:** https://affiliate-marketing-dashboard-production.up.railway.app
 
 Enjoy your AI-powered affiliate marketing system! 🎉

@@ -159,7 +159,7 @@ I've investigated all frontend issues and applied fixes for the most critical pr
 - ✅ Deployed successfully (Railway)
 - ⚠️ Some features not working (Connect buttons, Dashboard)
 - ⚠️ May need hard refresh to clear cache
-- **URL:** https://affiliate-frontend-production.up.railway.app
+- **URL:** https://affiliate-marketing-dashboard-production.up.railway.app
 
 ---
 

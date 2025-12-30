@@ -1,7 +1,7 @@
 # Deployment Guide - AI Affiliate Marketing System
 
 **Author:** Manus AI  
-**Last Updated:** December 18, 2025  
+**Last Updated:** December 30, 2025  
 **Status:** ✅ Active
 
 ---
@@ -17,13 +17,15 @@ This document is the single source of truth for all deployment-related informati
 ### Frontend
 
 **Platform:** Railway  
-**URL:** https://affiliate-frontend-production.up.railway.app  
-**Repository:** `TZEK89/affiliate-marketing-system`  
+**URL:** https://affiliate-marketing-dashboard-production.up.railway.app  
+**Repository:** `TZEK89/affproj-2024-x7k9akuk987be66`  
 **Branch:** `main`  
 **Auto-Deploy:** ✅ Enabled  
-**Build Command:** `pnpm build`  
+**Build Command:** `npm run build --workspace=frontend`  
 **Output Directory:** `.next`  
 **Framework:** Next.js 14
+
+**Service Name:** `affiliate-marketing-dashboard`
 
 **Environment Variables (Railway - Frontend Service):**
 
@@ -42,7 +44,7 @@ NEXT_PUBLIC_API_URL=https://affiliate-backend-production-df21.up.railway.app/api
 
 **Platform:** Railway  
 **URL:** https://affiliate-backend-production-df21.up.railway.app/api  
-**Repository:** `TZEK89/affiliate-marketing-system`  
+**Repository:** `TZEK89/affproj-2024-x7k9akuk987be66`  
 **Branch:** `main`  
 **Auto-Deploy:** ✅ Enabled  
 **Start Command:** `node server.js`  
@@ -74,7 +76,7 @@ HOTMART_HOTTOK=your_hottok
 # Server
 PORT=3001
 NODE_ENV=production
-FRONTEND_URL=https://affiliate-marketing-system-frontend.vercel.app
+FRONTEND_URL=https://affiliate-marketing-dashboard-production.up.railway.app
 CORS_ORIGIN=*
 ```
 

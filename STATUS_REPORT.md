@@ -91,7 +91,7 @@ The AI Command Center successfully processes product analysis requests using Ope
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    FRONTEND (Next.js)                        │
-│              affiliate-frontend-production.up.railway.app    │
+│              affiliate-marketing-dashboard-production.up.railway.app    │
 └─────────────────────────┬───────────────────────────────────┘
                           │
                           ▼
@@ -161,7 +161,7 @@ The AI Command Center successfully processes product analysis requests using Ope
 
 ## Deployment URLs
 
-- **Frontend:** https://affiliate-frontend-production.up.railway.app
+- **Frontend:** https://affiliate-marketing-dashboard-production.up.railway.app
 - **Backend:** https://affiliate-backend-production-df21.up.railway.app
 - **GitHub:** https://github.com/TZEK89/affiliate-marketing-system
 
