@@ -1,0 +1,124 @@
+{
+  "actions": [
+    {
+      "action": "review",
+      "module": "@eslint/plugin-kit",
+      "resolves": [
+        {
+          "id": 1106734,
+          "path": ".>eslint>@eslint/plugin-kit",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "next",
+      "resolves": [
+        {
+          "id": 1112638,
+          "path": ".>next",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    }
+  ],
+  "advisories": {
+    "1106734": {
+      "findings": [
+        {
+          "version": "0.2.8",
+          "paths": [
+            ".>eslint>@eslint/plugin-kit"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/eslint/rewrite/security/advisories/GHSA-xffm-g5w8-qvg7\n- https://github.com/eslint/rewrite/commit/b283f64099ad6c6b5043387c091691d21b387805\n- https://github.com/advisories/GHSA-xffm-g5w8-qvg7",
+      "created": "2025-07-18T20:39:12.000Z",
+      "id": 1106734,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nThe `ConfigCommentParser#parseJSONLikeConfig` API is vulnerable to a Regular Expression Denial of Service (ReDoS) attack in its only argument.\n\n### Details\n\nThe regular expression at [packages/plugin-kit/src/config-comment-parser.js:158](https://github.com/eslint/rewrite/blob/bd4bf23c59f0e4886df671cdebd5abaeb1e0d916/packages/plugin-kit/src/config-comment-parser.js#L158) is vulnerable to a quadratic runtime attack because the grouped expression is not anchored. This can be solved by prepending the regular expression with `[^-a-zA-Z0-9/]`.\n\n### PoC\n\n```javascript\nconst { ConfigCommentParser } = require(\"@eslint/plugin-kit\");\n\nconst str = `${\"A\".repeat(1000000)}?: 1 B: 2`;\n\nconsole.log(\"start\")\nvar parser = new ConfigCommentParser();\nconsole.log(parser.parseJSONLikeConfig(str));\nconsole.log(\"end\")\n\n// run `npm i @eslint/plugin-kit@0.3.3` and `node attack.js`\n// then the program will stuck forever with high CPU usage\n```\n\n### Impact\n\nThis is a Regular Expression Denial of Service attack which may lead to blocking execution and high CPU usage.",
+      "reported_by": null,
+      "title": "@eslint/plugin-kit is vulnerable to Regular Expression Denial of Service attacks through ConfigCommentParser",
+      "metadata": null,
+      "cves": [],
+      "access": "public",
+      "severity": "low",
+      "module_name": "@eslint/plugin-kit",
+      "vulnerable_versions": "<0.3.4",
+      "github_advisory_id": "GHSA-xffm-g5w8-qvg7",
+      "recommendation": "Upgrade to version 0.3.4 or later",
+      "patched_versions": ">=0.3.4",
+      "updated": "2025-07-28T17:34:45.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-1333"
+      ],
+      "url": "https://github.com/advisories/GHSA-xffm-g5w8-qvg7"
+    },
+    "1112638": {
+      "findings": [
+        {
+          "version": "15.5.10",
+          "paths": [
+            ".>next"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/vercel/next.js/security/advisories/GHSA-5f7q-jpqc-wp7h\n- https://nvd.nist.gov/vuln/detail/CVE-2025-59472\n- https://vercel.com/changelog/summaries-of-cve-2025-59471-and-cve-2025-59472\n- https://github.com/advisories/GHSA-5f7q-jpqc-wp7h",
+      "created": "2026-01-28T15:20:55.000Z",
+      "id": 1112638,
+      "npm_advisory_id": null,
+      "overview": "A denial of service vulnerability exists in Next.js versions with Partial Prerendering (PPR) enabled when running in minimal mode. The PPR resume endpoint accepts unauthenticated POST requests with the `Next-Resume: 1` header and processes attacker-controlled postponed state data. Two closely related vulnerabilities allow an attacker to crash the server process through memory exhaustion:\n\n1. **Unbounded request body buffering**: The server buffers the entire POST request body into memory using `Buffer.concat()` without enforcing any size limit, allowing arbitrarily large payloads to exhaust available memory.\n\n2. **Unbounded decompression (zipbomb)**: The resume data cache is decompressed using `inflateSync()` without limiting the decompressed output size. A small compressed payload can expand to hundreds of megabytes or gigabytes, causing memory exhaustion.\n\nBoth attack vectors result in a fatal V8 out-of-memory error (`FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory`) causing the Node.js process to terminate. The zipbomb variant is particularly dangerous as it can bypass reverse proxy request size limits while still causing large memory allocation on the server.\n\nTo be affected, an application must run with `experimental.ppr: true` or `cacheComponents: true` configured along with the NEXT_PRIVATE_MINIMAL_MODE=1 environment variable.\n\nStrongly consider upgrading to 15.6.0-canary.61 or 16.1.5 to reduce risk and prevent availability issues in Next applications.",
+      "reported_by": null,
+      "title": "Next.js has Unbounded Memory Consumption via PPR Resume Endpoint ",
+      "metadata": null,
+      "cves": [
+        "CVE-2025-59472"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "next",
+      "vulnerable_versions": ">=15.0.0-canary.0 <15.6.0-canary.61",
+      "github_advisory_id": "GHSA-5f7q-jpqc-wp7h",
+      "recommendation": "Upgrade to version 15.6.0-canary.61 or later",
+      "patched_versions": ">=15.6.0-canary.61",
+      "updated": "2026-01-28T15:20:57.000Z",
+      "cvss": {
+        "score": 5.9,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cwe": [
+        "CWE-400",
+        "CWE-409",
+        "CWE-770"
+      ],
+      "url": "https://github.com/advisories/GHSA-5f7q-jpqc-wp7h"
+    }
+  },
+  "muted": [],
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 1,
+      "moderate": 1,
+      "high": 0,
+      "critical": 0
+    },
+    "dependencies": 541,
+    "devDependencies": 0,
+    "optionalDependencies": 0,
+    "totalDependencies": 541
+  }
+}
