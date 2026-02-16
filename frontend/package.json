@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.17.0",
-    "axios": "^1.6.0",
+    "axios": "^1.13.5",
     "clsx": "^2.1.0",
     "date-fns": "^3.0.0",
     "lucide-react": "^0.309.0",
@@ -26,7 +26,8 @@
       "glob@>=10.2.0 <10.5.0": ">=10.5.0",
       "lodash@>=4.0.0 <=4.17.22": ">=4.17.23",
       "@modelcontextprotocol/sdk@>=1.10.0 <=1.25.3": ">=1.26.0",
-      "@eslint/plugin-kit": ">=0.3.4"
+      "@eslint/plugin-kit": ">=0.3.4",
+      "qs@>=6.7.0 <=6.14.1": ">=6.14.2"
     }
   },
   "devDependencies": {
